@@ -65,13 +65,15 @@ export function JwtSignInView() {
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
+    console.log('Form submitted with data', data);
     try {
       await signInWithPassword({ email: data.email, password: data.password });
+      console.log('Sign-in successfull');
       await checkUserSession?.();
 
       router.refresh();
     } catch (error) {
-      console.error(error);
+      console.error('Erreur pendant le processus', error);
       setErrorMsg(typeof error === 'string' ? error : error.message);
     }
   });
