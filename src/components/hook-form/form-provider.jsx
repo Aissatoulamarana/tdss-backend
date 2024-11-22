@@ -1,20 +1,13 @@
-import { useForm } from 'react-hook-form';
-import { Form } from './Form';
+import { FormProvider as RHFForm } from 'react-hook-form';
 
-function LoginForm() {
-  const methods = useForm({
-    defaultValues: { email: '', password: '' },
-  });
+// ----------------------------------------------------------------------
 
-  const onSubmit = (data) => {
-    console.log('Form Data:', data);
-  };
-
+export function Form({ children, onSubmit, methods }) {
   return (
-    <Form onSubmit={onSubmit} methods={methods}>
-      <input {...methods.register('email')} placeholder="Email" />
-      <input {...methods.register('password')} type="password" placeholder="Password" />
-      <button type="submit">Submit</button>
-    </Form>
-  );
+    <RHFForm {...methods}>
+      <form onSubmit={onSubmit} noValidate autoComplete="off">
+        {children}
+      </form>
+    </RHFForm>
+  );
 }
