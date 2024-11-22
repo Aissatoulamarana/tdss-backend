@@ -12,7 +12,7 @@ export const signInWithPassword = async ({ email, password }) => {
   try {
     const params = { email, password };
 
-    const res = await axios.POST(endpoints.auth.signIn, params);
+    const res = await axios.post(endpoints.auth.signIn, params);
 
     const { accessToken } = res.data;
 
