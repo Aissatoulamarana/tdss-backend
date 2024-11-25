@@ -66,19 +66,31 @@ export function JwtSignInView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      setErrorMsg('');
       await signInWithPassword({ email: data.email, password: data.password });
       await checkUserSession?.();
-
       router.refresh();
     } catch (error) {
-      console.error(error);
-      setErrorMsg(typeof error === 'string' ? error : error.message);
+      setErrorMsg(typeof error === 'string' ? error : error.message || 'Authentication failed');
     }
   });
 
+  const {
+    register, // Connecte les champs du formulaire
+
+    formState: { errors }, // Accède aux erreurs et à l'état d'envoi
+  } = methods;
+
   const renderForm = (
     <Box gap={3} display="flex" flexDirection="column">
-      <Field.Text name="email" label="Email address" InputLabelProps={{ shrink: true }} />
+      <Field.Text
+        name="email"
+        label="Email address"
+        {...register('email')}
+        error={!!errors.email} // Vérifie si une erreur existe pour ce champ
+        helperText={errors.email?.message}
+        InputLabelProps={{ shrink: true }}
+      />
 
       <Box gap={1.5} display="flex" flexDirection="column">
         <Link
@@ -95,6 +107,9 @@ export function JwtSignInView() {
           name="password"
           label="Password"
           placeholder="6+ characters"
+          {...register('password')}
+          error={!!errors.password}
+          helperText={errors.password?.message}
           type={password.value ? 'text' : 'password'}
           InputLabelProps={{ shrink: true }}
           InputProps={{
