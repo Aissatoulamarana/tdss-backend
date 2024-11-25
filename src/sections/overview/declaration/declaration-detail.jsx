@@ -43,8 +43,7 @@ export function DeclarationDetails({ invoice }) {
       <Table sx={{ minWidth: 960 }}>
         <TableHead>
           <TableRow>
-            <TableCell width={40}>N²</TableCell>
-
+            <TableCell width={40}></TableCell>
             <TableCell sx={{ typography: 'subtitle2' }}>Numero Passeport</TableCell>
 
             <TableCell align="right">Nom & Prénom</TableCell>
@@ -59,11 +58,7 @@ export function DeclarationDetails({ invoice }) {
 
               <TableCell>
                 <Box sx={{ maxWidth: 560 }}>
-                  <Typography variant="subtitle2">{row.title}</Typography>
-
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-                    {row.description}
-                  </Typography>
+                  <Typography variant="subtitle2">{row.id}</Typography>
                 </Box>
               </TableCell>
 

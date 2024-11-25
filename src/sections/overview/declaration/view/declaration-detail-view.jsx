@@ -17,7 +17,7 @@ export function DeclarationDetailsView({ invoice }) {
         heading={invoice?.invoiceNumber}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Invoice', href: paths.dashboard.declaration.root },
+          { name: 'Declarations', href: paths.dashboard.declaration.root },
           { name: invoice?.invoiceNumber },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
