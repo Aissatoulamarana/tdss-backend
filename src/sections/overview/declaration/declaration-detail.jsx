@@ -11,7 +11,8 @@ import TableHead from '@mui/material/TableHead';
 import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
-
+import Checkbox from '@mui/material/Checkbox';
+import ListItemText from '@mui/material/ListItemText';
 import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -31,7 +32,7 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export function DeclarationDetails({ invoice }) {
+export function DeclarationDetails({ invoice }, selected, onSelectRow) {
   const [currentStatus, setCurrentStatus] = useState(invoice?.status);
 
   /* const handleChangeStatus = useCallback((event) => {
@@ -53,16 +54,40 @@ export function DeclarationDetails({ invoice }) {
 
         <TableBody>
           {invoice?.items.map((row, index) => (
-            <TableRow key={index}>
-              <TableCell>{index + 1}</TableCell>
-
-              <TableCell>
-                <Box sx={{ maxWidth: 560 }}>
-                  <Typography variant="subtitle2">{row.id}</Typography>
-                </Box>
+            <TableRow hover selected={selected} key={index}>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  checked={selected}
+                  onClick={onSelectRow}
+                  inputProps={{ id: `row-checkbox`, 'aria-label': `Row checkbox` }}
+                />
               </TableCell>
 
-              <TableCell align="right">{fCurrency(row.price * row.quantity)}</TableCell>
+              <TableCell>
+                <Stack spacing={2} direction="row" alignItems="center">
+                  <ListItemText
+                    disableTypography
+                    primary={
+                      <Typography variant="body2" noWrap>
+                        {row.invoiceNumber}
+                      </Typography>
+                    }
+                  />
+                </Stack>
+              </TableCell>
+              <TableCell>{row.type}</TableCell>
+              <TableCell>{row.items.length}</TableCell>
+              <TableCell>{fDate(new Date(row.createDate))}</TableCell>
+
+              <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+
+              <TableCell>{row.status}</TableCell>
+
+              <TableCell align="right" sx={{ px: 1 }}>
+                <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
+                  <Iconify icon="eva:more-vertical-fill" />
+                </IconButton>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
