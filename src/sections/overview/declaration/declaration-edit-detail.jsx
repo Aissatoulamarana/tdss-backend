@@ -27,9 +27,7 @@ export function DeclarationNewEditDetails() {
   const [passportError, setPassportError] = useState(''); // État pour afficher l'erreur
   const [type, setType] = useState('nouvelle'); // Par défaut, type = nouvelle
 
-  const totalOnRow = values.items.map((item) => item.quantity * item.price);
-  const subtotal = totalOnRow.reduce((acc, num) => acc + num, 0);
-  const totalAmount = subtotal - values.discount - values.shipping + values.taxes;
+  const totalAmount = 0;
 
   const [rectoImage, setRectoImage] = useState(null);
   const [versoImage, setVersoImage] = useState(null);

@@ -7,38 +7,45 @@ import { varAlpha, stylesMode } from 'src/theme/styles';
 
 // ----------------------------------------------------------------------
 
-export const StyledLabel = styled(Box)(({ theme, ownerState: { color, variant } }) => {
+export const StyledLabel = styled(Box)(({
+  theme,
+  ownerState: { color = 'default', variant = 'filled' },
+}) => {
+  const paletteColor = theme.vars.palette[color] || {}; // Utiliser un objet vide si la couleur n'existe pas
+  const greyPalette = theme.vars.palette.grey || {}; // Palette grise par défaut pour éviter les erreurs
+  const textPalette = theme.vars.palette.text || {}; // Palette de texte par défaut pour les couleurs globales
+
   const defaultColor = {
     ...(color === 'default' && {
       /**
        * @variant filled
        */
       ...(variant === 'filled' && {
-        color: theme.vars.palette.common.white,
-        backgroundColor: theme.vars.palette.text.primary,
-        [stylesMode.dark]: { color: theme.vars.palette.grey[800] },
+        color: textPalette.primary || '#000',
+        backgroundColor: textPalette.primary || '#fff',
+        [stylesMode.dark]: { color: greyPalette[800] || '#000' },
       }),
       /**
        * @variant outlined
        */
       ...(variant === 'outlined' && {
         backgroundColor: 'transparent',
-        color: theme.vars.palette.text.primary,
-        border: `2px solid ${theme.vars.palette.text.primary}`,
+        color: textPalette.primary || '#000',
+        border: `2px solid ${textPalette.primary || '#000'}`,
       }),
       /**
        * @variant soft
        */
       ...(variant === 'soft' && {
-        color: theme.vars.palette.text.secondary,
-        backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+        color: textPalette.secondary || '#666',
+        backgroundColor: varAlpha(greyPalette['500Channel'] || '#000', 0.16),
       }),
       /**
        * @variant inverted
        */
       ...(variant === 'inverted' && {
-        color: theme.vars.palette.grey[800],
-        backgroundColor: theme.vars.palette.grey[300],
+        color: greyPalette[800] || '#000',
+        backgroundColor: greyPalette[300] || '#ccc',
       }),
     }),
   };
@@ -49,31 +56,31 @@ export const StyledLabel = styled(Box)(({ theme, ownerState: { color, variant } 
        * @variant filled
        */
       ...(variant === 'filled' && {
-        color: theme.vars.palette[color].contrastText,
-        backgroundColor: theme.vars.palette[color].main,
+        color: paletteColor.contrastText || '#fff',
+        backgroundColor: paletteColor.main || '#000',
       }),
       /**
        * @variant outlined
        */
       ...(variant === 'outlined' && {
         backgroundColor: 'transparent',
-        color: theme.vars.palette[color].main,
-        border: `2px solid ${theme.vars.palette[color].main}`,
+        color: paletteColor.main || '#000',
+        border: `2px solid ${paletteColor.main || '#000'}`,
       }),
       /**
        * @variant soft
        */
       ...(variant === 'soft' && {
-        color: theme.vars.palette[color].dark,
-        backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
-        [stylesMode.dark]: { color: theme.vars.palette[color].light },
+        color: paletteColor.dark || '#000',
+        backgroundColor: varAlpha(paletteColor.mainChannel || 'rgba(0,0,0,0)', 0.16),
+        [stylesMode.dark]: { color: paletteColor.light || '#fff' },
       }),
       /**
        * @variant inverted
        */
       ...(variant === 'inverted' && {
-        color: theme.vars.palette[color].darker,
-        backgroundColor: theme.vars.palette[color].lighter,
+        color: paletteColor.darker || '#000',
+        backgroundColor: paletteColor.lighter || '#fff',
       }),
     }),
   };

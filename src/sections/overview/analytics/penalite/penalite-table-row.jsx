@@ -2,7 +2,6 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
-import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -24,48 +23,79 @@ import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onEditRow, onDeleteRow }) {
+export function PenaliteTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onViewRow,
+  onEditRow,
+  onDeleteRow,
+}) {
   const confirm = useBoolean();
 
   const popover = usePopover();
 
   return (
     <>
-      <TableRow  hover selected={selected}>
+      <TableRow hover selected={selected}>
         <TableCell padding="checkbox">
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
-            inputProps={{ id: `row-checkbox`, 'aria-label': `Row checkbox` }}
+            inputProps={{ id: `row-checkbox-${row.id}`, 'aria-label': `Row checkbox` }}
           />
         </TableCell>
-        
+
         <TableCell>
           <Stack spacing={2} direction="row" alignItems="center">
-      
+            <Avatar alt={row.invoiceTo.name}>{row.invoiceTo.name.charAt(0).toUpperCase()}</Avatar>
 
             <ListItemText
               disableTypography
               primary={
                 <Typography variant="body2" noWrap>
-                  {row.invoiceNumber}
+                  {row.invoiceTo.name}
                 </Typography>
+              }
+              secondary={
+                <Link
+                  noWrap
+                  variant="body2"
+                  onClick={onViewRow}
+                  sx={{ color: 'text.disabled', cursor: 'pointer' }}
+                >
+                  {row.invoiceNumber}
+                </Link>
               }
             />
           </Stack>
         </TableCell>
-        <TableCell>{row.type}</TableCell>
-        <TableCell>{row.items.length}</TableCell>
-        <TableCell>{fDate(new Date(row.createDate))}</TableCell>
-        
+
+        <TableCell>{row.invoiceNumber}</TableCell>
+        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+        <TableCell>{row.invoiceTo.name}</TableCell>
+
         <TableCell>
-        {fCurrency(row.totalAmount)}
+          <Label
+            variant="soft"
+            color={
+              (row.status === 'paid' && 'success') ||
+              (row.status === 'pending' && 'warning') ||
+              (row.status === 'overdue' && 'error') ||
+              'default'
+            }
+          >
+            {row.status}
+          </Label>
         </TableCell>
-
-    
-        <TableCell>{row.status}</TableCell>
-
-        
+        <TableCell>
+          <ListItemText
+            primary={fDate(row.createDate)}
+            secondary={fTime(row.createDate)}
+            primaryTypographyProps={{ typography: 'body2', noWrap: true }}
+            secondaryTypographyProps={{ mt: 0.5, component: 'span', typography: 'caption' }}
+          />
+        </TableCell>
 
         <TableCell align="right" sx={{ px: 1 }}>
           <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
@@ -100,21 +130,17 @@ export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onE
             <Iconify icon="solar:pen-bold" />
             Modifier
           </MenuItem>
-
           <MenuItem
             onClick={() => {
               onEditRow();
               popover.onClose();
             }}
           >
-            <Iconify icon="material-symbols:check-circle-rounded" />
-
-            Valider
+            <Iconify icon="mdi:credit-card" />
+            Payer
           </MenuItem>
 
-          <Divider sx={{ borderStyle: 'dashed' }} />
-
-          <MenuItem
+          {/* <MenuItem
             onClick={() => {
               confirm.onTrue();
               popover.onClose();
@@ -124,17 +150,18 @@ export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onE
             <Iconify icon="solar:trash-bin-trash-bold" />
             Supprimer
           </MenuItem>
+           */}
         </MenuList>
       </CustomPopover>
 
       <ConfirmDialog
         open={confirm.value}
         onClose={confirm.onFalse}
-        title="Supprimer"
-        content="Etes vous sûr de vouloir supprimer ?"
+        title="Payer"
+        content="Are you sure want to delete?"
         action={
           <Button variant="contained" color="error" onClick={onDeleteRow}>
-            Supprimer
+            Payer
           </Button>
         }
       />

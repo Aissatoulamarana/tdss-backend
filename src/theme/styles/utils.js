@@ -61,13 +61,17 @@ export function hexToRgbChannel(hex) {
 }
 
 /**
- * Converts a hex color to RGB channels
+ * Converts a hex palette to a channel palette
  */
 export function createPaletteChannel(hexPalette) {
   const channelPalette = {};
 
   Object.entries(hexPalette).forEach(([key, value]) => {
-    channelPalette[`${key}Channel`] = hexToRgbChannel(value);
+    if (/^#[0-9A-F]{6}$/i.test(value)) {
+      channelPalette[`${key}Channel`] = hexToRgbChannel(value);
+    } else {
+      channelPalette[`${key}Channel`] = value; // Si déjà au bon format
+    }
   });
 
   return { ...hexPalette, ...channelPalette };
@@ -77,11 +81,26 @@ export function createPaletteChannel(hexPalette) {
  * Color with alpha channel
  */
 export function varAlpha(color, opacity = 1) {
+  let formattedColor = color;
+
+  // Si la couleur est en hexadécimal, convertissez-la en canaux RGB
+  if (color.startsWith('#')) {
+    formattedColor = hexToRgbChannel(color);
+  }
+
+  // Si la couleur est en format `rgb(...)` ou `rgba(...)`, extrayez les canaux
+  if (color.startsWith('rgb')) {
+    formattedColor = color
+      .replace(/rgba?\(/, '')
+      .replace(/\)/, '')
+      .split(',')
+      .slice(0, 3)
+      .map((c) => c.trim())
+      .join(' ');
+  }
+
   const unsupported =
-    color.startsWith('#') ||
-    color.startsWith('rgb') ||
-    color.startsWith('rgba') ||
-    (!color.includes('var') && color.includes('Channel'));
+    !formattedColor.includes('var') && !/^\d{1,3} \d{1,3} \d{1,3}$/.test(formattedColor);
 
   if (unsupported) {
     throw new Error(`[Alpha]: Unsupported color format "${color}".
@@ -91,9 +110,8 @@ export function varAlpha(color, opacity = 1) {
      Unsupported formats are:
      - Hex: "#00B8D9".
      - RGB: "rgb(0, 184, 217)".
-     - RGBA: "rgba(0, 184, 217, 1)".
-     `);
+     - RGBA: "rgba(0, 184, 217, 1)".`);
   }
 
-  return `rgba(${color} / ${opacity})`;
+  return `rgba(${formattedColor} / ${opacity})`;
 }

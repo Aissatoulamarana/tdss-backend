@@ -56,7 +56,7 @@ export const navData = [
           { title: 'Facture', path: paths.dashboard.analytics.facture },
           { title: 'Paiement', path: paths.dashboard.analytics.paiement },
           { title: 'Penalité', path: paths.dashboard.group.root },
-          { title: 'Permis de travail', path: paths.dashboard.group.root },
+          { title: 'Permis de travail', path: paths.dashboard.analytics.permis },
         ],
       },
       {

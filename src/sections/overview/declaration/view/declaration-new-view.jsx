@@ -18,7 +18,7 @@ export function DeclarationNewView() {
         heading="Nouvelle Déclarations"
         links={[
           { name: 'Tableau de bord', href: paths.dashboard.root },
-          { name: 'Déclarations', href: paths.dashboard.declaration.root },
+          { name: 'Déclarations', href: paths.dashboard.declaration.list },
           { name: 'Nouvelle Déclaration' },
         ]}
         sx={{ mb: { xs: 3, md: 2 } }} // Marges pour les breadcrumbs

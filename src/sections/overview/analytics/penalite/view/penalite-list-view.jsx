@@ -6,18 +6,18 @@ import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
-import { Grid2 } from '@mui/material';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import { Typography } from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
+import { Grid2 } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
-import { RouterLink } from 'src/routes/components';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -47,27 +47,28 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
-import { DeclarationTableRow } from '../declaration-table-row';
-import { DeclarationSummary } from '../declaration-analytic';
-import { InvoiceTableToolbar } from '../declaration-table-toolbar';
-import { InvoiceTableFiltersResult } from '../declaration-table-filters';
+import { PenaliteAnalytic } from '../penalite-analytic';
+import { PenaliteTableRow } from '../penalite-table-row';
+import { PenaliteTableToolbar } from '../penalite-table-toolbar';
+import { PenaliteTableFiltersResult } from '../penalite-table-filters-result';
 
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'invoiceNumber', label: 'Déclaration' },
-  { id: 'type', label: 'Type de declaration' },
-  { id: 'Number', label: 'Nombre Personnel' },
-  { id: 'createDate', label: 'Date de Création' },
-  { id: 'price', label: 'Facture' },
+  { id: 'invoiceNumber', label: 'Numero ' },
+
+  { id: 'type', label: 'Type' },
+  { id: 'price', label: 'Montant' },
+  { id: 'numero', label: 'Déclaration' },
   { id: 'status', label: 'Status' },
+  { id: 'createDate', label: 'Date ' },
 
   { id: '' },
 ];
 
 // ----------------------------------------------------------------------
 
-export function DeclarationListView() {
+export function PenaliteListView() {
   const theme = useTheme();
 
   const router = useRouter();
@@ -123,23 +124,16 @@ export function DeclarationListView() {
       count: tableData.length,
     },
     {
-      value: 'submit',
-      label: 'Soumise',
-      color: 'warnning',
-      count: getInvoiceLength('pending'),
-    },
-    {
-      value: 'success',
-      label: 'Validées',
+      value: 'paid',
+      label: 'Payées',
       color: 'success',
-      count: getInvoiceLength('success'),
+      count: getInvoiceLength('paid'),
     },
-
     {
-      value: 'reject',
-      label: 'Rejetées',
-      color: 'error',
-      count: getInvoiceLength('draft'),
+      value: 'pending',
+      label: 'En attente',
+      color: 'warning',
+      count: getInvoiceLength('pending'),
     },
   ];
 
@@ -171,14 +165,14 @@ export function DeclarationListView() {
 
   const handleEditRow = useCallback(
     (id) => {
-      router.push(paths.dashboard.declaration.edit(id));
+      router.push(paths.dashboard.invoice.edit(id));
     },
     [router]
   );
 
   const handleViewRow = useCallback(
     (id) => {
-      router.push(paths.dashboard.declaration.details(id));
+      router.push(paths.dashboard.invoice.details(id));
     },
     [router]
   );
@@ -195,80 +189,70 @@ export function DeclarationListView() {
     <>
       <DashboardContent maxWidth="xl">
         <CustomBreadcrumbs
-          heading="Listes des Déclarations"
+          heading="Listes des Penalités"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Déclaration', href: paths.dashboard.declaration.root },
-            { name: 'Listes des déclarations' },
+            { name: 'Penalité', href: paths.dashboard.penalite.root },
+            { name: 'Listes' },
           ]}
-          action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.declaration.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Nouvelle Déclaration
-            </Button>
-          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
-        <Grid2 container spacing={3} sx={{ mb: { xs: 3, md: 5 } }} lg={12}>
-          <Grid2 size={{ xs: 6, md: 3 }}>
-            <DeclarationSummary
-              title="Total"
-              total={tableData.length}
-              percent={100}
-              chart={{
-                colors: [theme.vars.palette.info.main],
-                categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-                series: [20, 41, 63, 33, 28, 35, 50, 46],
-              }}
-            />
+        <Stack spacing={4}>
+          <Grid2 container spacing={3} sx={{ mb: { xs: 3, md: 5 } }} lg={12}>
+            <Grid2 size={{ xs: 6, md: 3 }}>
+              <PenaliteAnalytic
+                title="Total"
+                total={tableData.length}
+                percent={100}
+                chart={{
+                  colors: [theme.vars.palette.info.main],
+                  categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+                  series: [20, 41, 63, 33, 28, 35, 50, 46],
+                }}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 6, md: 3 }}>
+              <PenaliteAnalytic
+                title="Payées"
+                percent={2.6}
+                total={18765}
+                chart={{
+                  categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+                  series: [15, 18, 12, 51, 68, 11, 39, 37],
+                }}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 6, md: 3 }}>
+              <PenaliteAnalytic
+                title="En attente"
+                percent={2.6}
+                total={18765}
+                chart={{
+                  colors: [theme.vars.palette.error.main],
+                  categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+                  series: [18, 19, 31, 8, 16, 37, 12, 33],
+                }}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 6, md: 3 }}>
+              <PenaliteAnalytic
+                title="En attente"
+                percent={2.6}
+                total={18765}
+                chart={{
+                  colors: [theme.vars.palette.error.main],
+                  categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+                  series: [18, 19, 31, 8, 16, 37, 12, 33],
+                }}
+              />
+            </Grid2>
           </Grid2>
-          <Grid2 size={{ xs: 6, md: 3 }}>
-            <DeclarationSummary
-              title="Payées"
-              total={getInvoiceLength('paid')}
-              percent={getPercentByStatus('paid')}
-              chart={{
-                // colors: [theme.vars.palette.success.main],
-                categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-                series: [15, 18, 12, 51, 68, 11, 39, 37],
-              }}
-            />
-          </Grid2>
+        </Stack>
 
-          <Grid2 size={{ xs: 6, md: 3 }}>
-            <DeclarationSummary
-              title="En attente"
-              total={getInvoiceLength('pending')}
-              percent={getPercentByStatus('pending')}
-              chart={{
-                colors: [theme.vars.palette.warning.main],
-                categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-                series: [18, 19, 31, 8, 16, 37, 12, 33],
-              }}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 6, md: 3 }}>
-            <DeclarationSummary
-              title="Brouillon"
-              total={getInvoiceLength('draft')}
-              percent={getPercentByStatus('draft')}
-              chart={{
-                colors: [theme.vars.palette.error.main],
-                categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-                series: [18, 19, 31, 8, 16, 37, 12, 33],
-              }}
-            />
-          </Grid2>
-        </Grid2>
-
-        <Card>
+        <Card sx={{ mb: { xs: 3, md: 5 } }} lg={12}>
           <Tabs
-            value={filters.state.status}
+            value={filters?.state?.status || []}
             onChange={handleFilterStatus}
             sx={{
               px: 2.5,
@@ -296,7 +280,7 @@ export function DeclarationListView() {
             ))}
           </Tabs>
 
-          <InvoiceTableToolbar
+          <PenaliteTableToolbar
             filters={filters}
             dateError={dateError}
             onResetPage={table.onResetPage}
@@ -304,7 +288,7 @@ export function DeclarationListView() {
           />
 
           {canReset && (
-            <InvoiceTableFiltersResult
+            <PenaliteTableFiltersResult
               filters={filters}
               onResetPage={table.onResetPage}
               totalResults={dataFiltered.length}
@@ -312,7 +296,7 @@ export function DeclarationListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
+          <Box sx={{ position: 'relative' }} lg={12}>
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
@@ -325,7 +309,7 @@ export function DeclarationListView() {
               }}
               action={
                 <Stack direction="row">
-                  <Tooltip title="Facturer">
+                  <Tooltip title="Envoyer">
                     <IconButton color="primary">
                       <Iconify icon="iconamoon:send-fill" />
                     </IconButton>
@@ -343,16 +327,16 @@ export function DeclarationListView() {
                     </IconButton>
                   </Tooltip>
 
-                  <Tooltip title="Supprimer">
+                  <Tooltip title="Payer">
                     <IconButton color="primary" onClick={confirm.onTrue}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
+                      <Iconify icon="mdi:credit-card" />
                     </IconButton>
                   </Tooltip>
                 </Stack>
               }
             />
 
-            <Scrollbar sx={{ minHeight: 444 }}>
+            <Scrollbar sx={{ minHeight: 444, minWidth: 1000 }}>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
                 <TableHeadCustom
                   order={table.order}
@@ -376,7 +360,7 @@ export function DeclarationListView() {
                       table.page * table.rowsPerPage + table.rowsPerPage
                     )
                     .map((row) => (
-                      <DeclarationTableRow
+                      <PenaliteTableRow
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
@@ -413,22 +397,22 @@ export function DeclarationListView() {
       <ConfirmDialog
         open={confirm.value}
         onClose={confirm.onFalse}
-        title="Supprimer"
+        title="Payer"
         content={
           <>
-            Etes vous sûr de vouloir supprimer <strong> {table.selected.length} </strong> items?
+            Etes vous sûr de vouloir payer <strong> {table.selected.length} </strong> factures?
           </>
         }
         action={
           <Button
             variant="contained"
-            color="error"
+            color="primary"
             onClick={() => {
               handleDeleteRows();
               confirm.onFalse();
             }}
           >
-            Supprimer
+            Payer
           </Button>
         }
       />
