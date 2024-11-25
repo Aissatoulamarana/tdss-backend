@@ -85,7 +85,7 @@ export function JwtSignInView() {
     <Box gap={3} display="flex" flexDirection="column">
       <Field.Text
         name="email"
-        label="Email address"
+        label="Email"
         {...register('email')}
         error={!!errors.email} // Vérifie si une erreur existe pour ce champ
         helperText={errors.email?.message}
