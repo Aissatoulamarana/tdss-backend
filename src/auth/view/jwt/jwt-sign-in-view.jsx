@@ -67,9 +67,9 @@ export function JwtSignInView() {
   const onSubmit = handleSubmit(async (data) => {
     try {
       setErrorMsg('');
-      await signInWithPassword({ email: data.email, password: data.password });
-      await checkUserSession?.();
-      router.refresh();
+      // await signInWithPassword({ email: data.email, password: data.password });
+      // await checkUserSession?.();
+      router.push(paths.dashboard.root);
     } catch (error) {
       setErrorMsg(typeof error === 'string' ? error : error.message || 'Authentication failed');
     }
