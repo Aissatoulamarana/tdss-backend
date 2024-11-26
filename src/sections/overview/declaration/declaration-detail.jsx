@@ -19,22 +19,11 @@ import IconButton from '@mui/material/IconButton';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { usePopover, CustomPopover } from 'src/components/custom-popover';
-import { Iconify } from 'src/components/iconify';
-import MenuList from '@mui/material/MenuList';
-import MenuItem from '@mui/material/MenuItem';
+
 import FilteredTable from './components/tableau';
 import { DeclarationToolbar } from './declaration-toolbar';
 import { INVOICE_STATUS_OPTIONS } from 'src/_mock';
 // ----------------------------------------------------------------------
-
-const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  [`& .${tableCellClasses.root}`]: {
-    textAlign: 'right',
-    borderBottom: 'none',
-    paddingTop: theme.spacing(1),
-    paddingBottom: theme.spacing(1),
-  },
-}));
 
 // ----------------------------------------------------------------------
 
@@ -46,23 +35,6 @@ export function DeclarationDetails({ invoice }, selected, onSelectRow) {
   const handleChangeStatus = useCallback((event) => {
     setCurrentStatus(event.target.value);
   }, []);
-
-  const renderList = (
-    <Scrollbar sx={{ mt: 5 }}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell width={40}></TableCell>
-            <TableCell sx={{ typography: 'subtitle2' }}>Numero Passeport</TableCell>
-            <TableCell align="right">Nom & Prénom</TableCell>
-            <TableCell align="right">Nationalité</TableCell>
-
-            <TableCell align="right">Fonction</TableCell>
-          </TableRow>
-        </TableHead>
-      </Table>
-    </Scrollbar>
-  );
 
   return (
     <>
