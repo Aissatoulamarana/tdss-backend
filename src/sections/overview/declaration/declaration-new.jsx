@@ -13,54 +13,51 @@ import { today, fIsAfter } from 'src/utils/format-time';
 import { Form } from 'src/components/hook-form';
 import { DeclarationNewEditStatusDate } from './declaration-status';
 import { DeclarationNewEditDetails } from './declaration-edit-detail';
-// import { DeclarationTableRow } from './view/declaration-list-view'; // Importation du composant Liste
 
-export const NewInvoiceSchema = zod
-  .object({
-    createDate: zod.date({
-      message: { required_error: 'Create date is required!' },
-    }),
-    items: zod.array(
-      zod.object({
-        nom: zod.string().min(1, { message: 'Title is required!' }),
-        nationalité: zod.string().min(1, { message: 'Service is required!' }),
-        service: zod.string().min(1, { message: 'Service is required!' }),
-        price: zod.number(),
-        total: zod.number(),
-      })
-    ),
-    taxes: zod.number(),
-    status: zod.string(),
-    totalAmount: zod.number(),
-    invoiceNumber: zod.string(),
-  })
-  .refine((data) => !fIsAfter(data.createDate, data.dueDate), {
-    message: 'Due date cannot be earlier than create date!',
-    path: ['dueDate'],
-  });
+export const NewInvoiceSchema = zod.object({
+  createDate: zod.preprocess(
+    (arg) => (typeof arg === 'string' ? new Date(arg) : arg),
+    zod.date().optional()
+  ),
+  items: zod.array(
+    zod.object({
+      numero: zod.number().min(1, { message: 'Le numero du passeport est obligatoire' }),
+      nom: zod.string().min(1, { message: 'Nom est obligatoire!' }),
+      nationalite: zod.string().min(1, { message: 'Ce champ est obligatoire!' }),
+      fonction: zod.string().min(1, { message: 'Ce champ est obligatoire!' }),
+      price: zod.number(),
+      total: zod.number(),
+    })
+  ),
+  type: zod.string(),
+  status: zod.string(),
+  // totalAmount: zod.number(),
+  declarationNumber: zod.string(),
+});
 
 const generateUniqueId = () => {
-  return 'DEC-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  return 'DEC-' + Math.random().toString(36).substr(2, 6).toUpperCase();
 };
 
 export function DeclarationNew({ currentInvoice }) {
   const router = useRouter();
   const loadingSave = useBoolean();
   const loadingSend = useBoolean();
-  const [submissions, setSubmissions] = useState([]); // État pour les soumissions
 
   const defaultValues = useMemo(
     () => ({
-      invoiceNumber: currentInvoice?.invoiceNumber || generateUniqueId(),
+      declarationNumber: currentInvoice?.declarationNumber || generateUniqueId(),
       createDate: currentInvoice?.createDate || today(),
       status: currentInvoice?.status || 'draft',
-      discount: currentInvoice?.discount || 0,
-      totalAmount: currentInvoice?.totalAmount || 0,
+      // discount: currentInvoice?.discount || 0,
+      //totalAmount: currentInvoice?.totalAmount || 0,
       items: currentInvoice?.items || [
         {
+          numero: '',
           nom: '',
-          nationalité: '',
-          service: '',
+          nationalite: '',
+          fonction: '',
+          type: '',
           price: 0,
           total: 0,
         },
@@ -86,10 +83,9 @@ export function DeclarationNew({ currentInvoice }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      setSubmissions([...submissions, { ...data, status: 'Brouillon' }]);
       reset();
       loadingSave.onFalse();
-      router.push(paths.dashboard.invoice.root);
+      router.push(paths.dashboard.declaration.list);
       console.info('DATA', JSON.stringify(data, null, 2));
     } catch (error) {
       console.error(error);
@@ -102,7 +98,6 @@ export function DeclarationNew({ currentInvoice }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      setSubmissions([...submissions, { ...data, status: 'En attente de validation' }]);
       reset();
       loadingSend.onFalse();
       router.push(paths.dashboard.declaration.list);
@@ -140,8 +135,6 @@ export function DeclarationNew({ currentInvoice }) {
           {currentInvoice ? 'Mettre à jour' : 'Créer'} & Soumettre
         </LoadingButton>
       </Stack>
-      {/*  <DeclarationTableRow data={submissions} />{' '}
-       Ajout du composant Liste pour afficher les soumissions */}
     </Form>
   );
 }

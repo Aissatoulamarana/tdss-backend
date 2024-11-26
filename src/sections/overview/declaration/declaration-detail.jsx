@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -15,10 +15,16 @@ import Checkbox from '@mui/material/Checkbox';
 import ListItemText from '@mui/material/ListItemText';
 import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
-
+import IconButton from '@mui/material/IconButton';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
-
+import { usePopover, CustomPopover } from 'src/components/custom-popover';
+import { Iconify } from 'src/components/iconify';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
+import FilteredTable from './components/tableau';
+import { DeclarationToolbar } from './declaration-toolbar';
+import { INVOICE_STATUS_OPTIONS } from 'src/_mock';
 // ----------------------------------------------------------------------
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
@@ -35,146 +41,87 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 export function DeclarationDetails({ invoice }, selected, onSelectRow) {
   const [currentStatus, setCurrentStatus] = useState(invoice?.status);
 
-  /* const handleChangeStatus = useCallback((event) => {
+  const popover = usePopover();
+
+  const handleChangeStatus = useCallback((event) => {
     setCurrentStatus(event.target.value);
-  },[]); */
+  }, []);
 
   const renderList = (
     <Scrollbar sx={{ mt: 5 }}>
-      <Table sx={{ minWidth: 960 }}>
+      <Table>
         <TableHead>
           <TableRow>
             <TableCell width={40}></TableCell>
             <TableCell sx={{ typography: 'subtitle2' }}>Numero Passeport</TableCell>
-
             <TableCell align="right">Nom & Prénom</TableCell>
+            <TableCell align="right">Nationalité</TableCell>
+
             <TableCell align="right">Fonction</TableCell>
           </TableRow>
         </TableHead>
-
-        <TableBody>
-          {invoice?.items.map((row, index) => (
-            <TableRow hover selected={selected} key={index}>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  checked={selected}
-                  onClick={onSelectRow}
-                  inputProps={{ id: `row-checkbox`, 'aria-label': `Row checkbox` }}
-                />
-              </TableCell>
-
-              <TableCell>
-                <Stack spacing={2} direction="row" alignItems="center">
-                  <ListItemText
-                    disableTypography
-                    primary={
-                      <Typography variant="body2" noWrap>
-                        {row.invoiceNumber}
-                      </Typography>
-                    }
-                  />
-                </Stack>
-              </TableCell>
-              <TableCell>{row.type}</TableCell>
-              <TableCell>{row.items.length}</TableCell>
-              <TableCell>{fDate(new Date(row.createDate))}</TableCell>
-
-              <TableCell>{fCurrency(row.totalAmount)}</TableCell>
-
-              <TableCell>{row.status}</TableCell>
-
-              <TableCell align="right" sx={{ px: 1 }}>
-                <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
-                  <Iconify icon="eva:more-vertical-fill" />
-                </IconButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
       </Table>
     </Scrollbar>
   );
 
   return (
-    <Card sx={{ pt: 5, px: 5 }}>
-      <Box
-        rowGap={5}
-        display="grid"
-        alignItems="center"
-        gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
-      >
+    <>
+      <DeclarationToolbar
+        invoice={invoice}
+        currentStatus={currentStatus || ''}
+        onChangeStatus={handleChangeStatus}
+        statusOptions={INVOICE_STATUS_OPTIONS}
+      />
+      <Card sx={{ pt: 5, px: 5 }}>
         <Box
-          component="img"
-          alt="logo"
-          src="/logo/logo-single.svg"
-          sx={{ width: 48, height: 48 }}
-        />
+          rowGap={5}
+          display="grid"
+          alignItems="center"
+          gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
+        >
+          <Box
+            component="img"
+            alt="logo"
+            src="/logo/logo-single.svg"
+            sx={{ width: 48, height: 48 }}
+          />
+          <Stack spacing={1} alignItems={{ xs: 'flex-start', md: 'flex-end' }}>
+            <Label
+              variant="soft"
+              color={
+                (currentStatus === 'paid' && 'success') ||
+                (currentStatus === 'pending' && 'warning') ||
+                (currentStatus === 'overdue' && 'error') ||
+                'default'
+              }
+            >
+              {currentStatus}
+            </Label>
 
-        <Stack spacing={1} alignItems={{ xs: 'flex-start', md: 'flex-end' }}>
-          <Label
-            variant="soft"
-            color={
-              (currentStatus === 'paid' && 'success') ||
-              (currentStatus === 'pending' && 'warning') ||
-              (currentStatus === 'overdue' && 'error') ||
-              'default'
-            }
-          >
-            {currentStatus}
-          </Label>
+            <Typography variant="h6">{invoice?.invoiceNumber}</Typography>
+          </Stack>
 
-          <Typography variant="h6">{invoice?.invoiceNumber}</Typography>
-        </Stack>
+          <Stack sx={{ typography: 'body2' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Client
+              <br />
+              {invoice?.invoiceFrom.name}
+            </Typography>
+          </Stack>
 
-        <Stack sx={{ typography: 'body2' }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Client
-            <br />
-            {invoice?.invoiceFrom.name}
-          </Typography>
-        </Stack>
+          <Stack sx={{ typography: 'body2' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Date de creation
+            </Typography>
+            {fDate(invoice?.createDate)}
+          </Stack>
+        </Box>
+        <Divider sx={{ mt: 5, borderStyle: 'dashed' }} mb={4} />
 
-        <Stack sx={{ typography: 'body2' }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Date de creation
-          </Typography>
-          {fDate(invoice?.createDate)}
-        </Stack>
-      </Box>
-      <Divider sx={{ mt: 5, borderStyle: 'dashed' }} mb={4} />
-      <Stack
-        direction="row"
-        justifyContent="center"
-        alignItems="center"
-        mb={4}
-        spacing={12} // Ajoute de l'espace entre les éléments
-        sx={{ typography: 'body2' }}
-      >
-        <Stack alignItems="center">
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Cadres
-          </Typography>
-          2
-        </Stack>
+        <FilteredTable />
 
-        <Stack alignItems="center">
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Agents
-          </Typography>
-          1
-        </Stack>
-
-        <Stack alignItems="center">
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Ouvriers
-          </Typography>
-          1
-        </Stack>
-      </Stack>
-
-      {renderList}
-
-      <Divider sx={{ mt: 5, borderStyle: 'dashed' }} />
-    </Card>
+        <Divider sx={{ mt: 5, borderStyle: 'dashed' }} />
+      </Card>
+    </>
   );
 }

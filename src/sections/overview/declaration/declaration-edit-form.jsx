@@ -12,11 +12,11 @@ import { useRouter } from 'src/routes/hooks';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 
-import { today, fIsAfter } from 'src/utils/format-time';
+import { today } from 'src/utils/format-time';
 
 import { Form } from 'src/components/hook-form';
 
-import { DeclarationNewEditStatusDate } from './declaration-status';
+import { DeclarationEditStatusDate } from './declaration-status-edit';
 import { DeclarationEdit } from './declaration-edit';
 
 // ----------------------------------------------------------------------
@@ -77,21 +77,6 @@ export function DeclarationEditForm({ currentInvoice }) {
     formState: { isSubmitting },
   } = methods;
 
-  const handleSaveAsDraft = handleSubmit(async (data) => {
-    loadingSave.onTrue();
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
-      loadingSave.onFalse();
-      router.push(paths.dashboard.invoice.root);
-      console.info('DATA', JSON.stringify(data, null, 2));
-    } catch (error) {
-      console.error(error);
-      loadingSave.onFalse();
-    }
-  });
-
   const handleCreateAndSend = handleSubmit(async (data) => {
     loadingSend.onTrue();
 
@@ -99,7 +84,7 @@ export function DeclarationEditForm({ currentInvoice }) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       reset();
       loadingSend.onFalse();
-      router.push(paths.dashboard.declaration.root);
+      router.push(paths.dashboard.declaration.list);
       console.info('DATA', JSON.stringify(data, null, 2));
     } catch (error) {
       console.error(error);
@@ -110,22 +95,12 @@ export function DeclarationEditForm({ currentInvoice }) {
   return (
     <Form methods={methods}>
       <Card>
-        <DeclarationNewEditStatusDate />
+        <DeclarationEditStatusDate />
 
         <DeclarationEdit />
       </Card>
 
       <Stack justifyContent="flex-end" direction="row" spacing={2} sx={{ mt: 3 }}>
-        <LoadingButton
-          color="inherit"
-          size="large"
-          variant="outlined"
-          loading={loadingSave.value && isSubmitting}
-          onClick={handleSaveAsDraft}
-        >
-          Brouillon
-        </LoadingButton>
-
         <LoadingButton
           size="large"
           variant="contained"

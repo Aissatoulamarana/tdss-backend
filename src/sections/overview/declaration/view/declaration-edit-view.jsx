@@ -17,7 +17,7 @@ export function DeclarationEditView({ invoice }) {
         heading="Modifier"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Déclarations', href: paths.dashboard.declaration.root },
+          { name: 'Déclarations', href: paths.dashboard.declaration.list },
           { name: invoice?.invoiceNumber },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

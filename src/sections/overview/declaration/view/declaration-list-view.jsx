@@ -175,6 +175,12 @@ export function DeclarationListView() {
     },
     [router]
   );
+  const handleValidateRow = useCallback(
+    (id) => {
+      router.push(paths.dashboard.factures.list);
+    },
+    [router]
+  );
 
   const handleViewRow = useCallback(
     (id) => {
@@ -384,6 +390,7 @@ export function DeclarationListView() {
                         onViewRow={() => handleViewRow(row.id)}
                         onEditRow={() => handleEditRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
+                        onValidateRow={() => handleValidateRow(row.id)}
                       />
                     ))}
 

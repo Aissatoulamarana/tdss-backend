@@ -40,10 +40,11 @@ export function DeclarationNewEditDetails() {
 
   const handleAdd = () => {
     append({
+      type: '',
       fonction: '',
       nom: '',
-      numeroPasseport: '',
-      nationalité: '',
+      numero: '',
+      nationalite: '',
     });
   };
 
@@ -161,11 +162,12 @@ export function DeclarationNewEditDetails() {
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ width: '100%' }}>
               <Field.Text
                 size="small"
-                name="numeroPasseport"
+                type="number"
+                name={`items[${index}].numero`}
                 label="Numéro Passeport"
                 InputLabelProps={{ shrink: true }}
                 sx={{ width: '100%' }}
-                onChange={handlePassportChange} // Appel de la fonction de vérification dès que l'utilisateur tape
+                // onChange={handlePassportChange} // Appel de la fonction de vérification dès que l'utilisateur tape
               />
               {/* Afficher un message d'erreur si le passeport existe déjà */}
               {passportExists && (
@@ -175,7 +177,7 @@ export function DeclarationNewEditDetails() {
               )}
 
               <Field.Select
-                name="type"
+                name={`items[${index}].type`}
                 size="small"
                 label="Type"
                 InputLabelProps={{ shrink: true }}
@@ -204,7 +206,7 @@ export function DeclarationNewEditDetails() {
 
               <Field.CountrySelect
                 size="small"
-                name="Nationalités"
+                name={`items[${index}].nationalite`}
                 label="Nationalités"
                 placeholder="Selectionnez un pays "
                 sx={{ width: '100%' }}

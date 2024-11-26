@@ -24,31 +24,38 @@ import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onEditRow, onDeleteRow }) {
+export function DeclarationTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onViewRow,
+  onEditRow,
+  onDeleteRow,
+  onValidateRow,
+}) {
   const confirm = useBoolean();
+  const confrimValidate = useBoolean();
 
   const popover = usePopover();
 
   return (
     <>
-      <TableRow  hover selected={selected}>
+      <TableRow hover selected={selected}>
         <TableCell padding="checkbox">
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
-            inputProps={{ id: `row-checkbox`, 'aria-label': `Row checkbox` }}
+            inputProps={{ id: `row-checkbox-${row.id}`, 'aria-label': `Row checkbox` }}
           />
         </TableCell>
-        
+
         <TableCell>
           <Stack spacing={2} direction="row" alignItems="center">
-      
-
             <ListItemText
               disableTypography
               primary={
                 <Typography variant="body2" noWrap>
-                  {row.invoiceNumber}
+                  {row.declarationNumber}
                 </Typography>
               }
             />
@@ -57,15 +64,10 @@ export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onE
         <TableCell>{row.type}</TableCell>
         <TableCell>{row.items.length}</TableCell>
         <TableCell>{fDate(new Date(row.createDate))}</TableCell>
-        
-        <TableCell>
-        {fCurrency(row.totalAmount)}
-        </TableCell>
 
-    
+        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+
         <TableCell>{row.status}</TableCell>
-
-        
 
         <TableCell align="right" sx={{ px: 1 }}>
           <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
@@ -103,12 +105,11 @@ export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onE
 
           <MenuItem
             onClick={() => {
-              onEditRow();
+              confrimValidate.onTrue();
               popover.onClose();
             }}
           >
             <Iconify icon="material-symbols:check-circle-rounded" />
-
             Valider
           </MenuItem>
 
@@ -126,6 +127,22 @@ export function DeclarationTableRow({ row, selected, onSelectRow, onViewRow, onE
           </MenuItem>
         </MenuList>
       </CustomPopover>
+
+      <ConfirmDialog
+        open={confrimValidate.value}
+        onClose={confrimValidate.onFalse}
+        title="Valider"
+        content={
+          <>
+            Etes vous sûr de vouloir valider <strong> {row.length} </strong> déclaration(s)?
+          </>
+        }
+        action={
+          <Button variant="contained" color="primary" onClick={onValidateRow}>
+            Valider
+          </Button>
+        }
+      />
 
       <ConfirmDialog
         open={confirm.value}
