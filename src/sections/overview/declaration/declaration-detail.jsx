@@ -54,7 +54,7 @@ export function DeclarationDetails({ invoice }, selected, onSelectRow) {
           <Box
             component="img"
             alt="logo"
-            src="/logo/logo-single.svg"
+            src="/logo/logo-single.png"
             sx={{ width: 48, height: 48 }}
           />
           <Stack spacing={1} alignItems={{ xs: 'flex-start', md: 'flex-end' }}>

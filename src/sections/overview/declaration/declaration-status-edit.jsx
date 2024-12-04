@@ -1,5 +1,5 @@
 import { useFormContext } from 'react-hook-form';
-import { useState } from 'react';
+
 import Stack from '@mui/material/Stack';
 import MenuItem from '@mui/material/MenuItem';
 
@@ -20,26 +20,26 @@ export function DeclarationEditStatusDate() {
     >
       <Field.Text
         disabled
-        name={`items[${index}].declarationNumber`}
-        label="Numero de la declaration"
+        name="declarationNumber"
+        label="Numero déclaration"
         value={values.declarationNumber}
       />
 
       <Field.Select
+        disabled
         fullWidth
         name="status"
         label="Status"
         InputLabelProps={{ shrink: true }}
-        disabled
       >
-        {['paid', 'pending', 'overdue', 'draft'].map((option) => (
+        {['rejettée', 'soumise', 'validée', 'draft'].map((option) => (
           <MenuItem key={option} value={option} sx={{ textTransform: 'capitalize' }}>
             {option}
           </MenuItem>
         ))}
       </Field.Select>
 
-      <Field.DatePicker name={`items[${index}].createDate`} label="Date" disabled />
+      <Field.DatePicker disabled name="createDate" label="Date create" />
     </Stack>
   );
 }

@@ -1,65 +1,79 @@
 import { z as zod } from 'zod';
-
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import axios from 'axios';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import LoadingButton from '@mui/lab/LoadingButton';
+
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
+
 import { useBoolean } from 'src/hooks/use-boolean';
+
 import { today, fIsAfter } from 'src/utils/format-time';
-import { Form } from 'src/components/hook-form';
-import { DeclarationNewEditStatusDate } from './declaration-status';
+
+import { _addressBooks } from 'src/_mock';
+
+import { Form, schemaHelper } from 'src/components/hook-form';
+
+import { DeclarationEditStatusDate } from './declaration-status-edit';
 import { DeclarationNewEditDetails } from './declaration-edit-detail';
 
+// ----------------------------------------------------------------------
+
 export const NewInvoiceSchema = zod.object({
-  createDate: zod.preprocess(
-    (arg) => (typeof arg === 'string' ? new Date(arg) : arg),
-    zod.date().optional()
-  ),
+  createDate: schemaHelper.date({
+    message: { required_error: 'Create date is required!' },
+  }),
+
   items: zod.array(
     zod.object({
-      numero: zod.number().min(1, { message: 'Le numero du passeport est obligatoire' }),
-      nom: zod.string().min(1, { message: 'Nom est obligatoire!' }),
-      nationalite: zod.string().min(1, { message: 'Ce champ est obligatoire!' }),
-      fonction: zod.string().min(1, { message: 'Ce champ est obligatoire!' }),
-      price: zod.number(),
-      total: zod.number(),
+      numero: zod.number().min(1, { message: 'Numero du passeport obligatoire' }),
+      type: zod.string().min(1, { message: 'Title is required!' }),
+      fonction: zod.string().min(1, { message: 'le champ fonction est obligatoire!' }),
+      nationalite: zod.string().min(1, { message: "Selectionnez votre paus d'origine " }),
+      // Not required
+      prenom: zod.string().min(1, { message: 'Entrez votre prenom ' }),
+      nom: zod.string().min(1, { message: 'Entrez votre nom ' }),
     })
   ),
-  type: zod.string(),
+  // Not required
+
   status: zod.string(),
-  // totalAmount: zod.number(),
+
   declarationNumber: zod.string(),
 });
 
 const generateUniqueId = () => {
-  return 'DEC-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+  return 'DEC-' + Math.random().toString(36).substr(2, 9).toUpperCase();
 };
+
+// ----------------------------------------------------------------------
 
 export function DeclarationNew({ currentInvoice }) {
   const router = useRouter();
+
   const loadingSave = useBoolean();
+
   const loadingSend = useBoolean();
 
   const defaultValues = useMemo(
     () => ({
       declarationNumber: currentInvoice?.declarationNumber || generateUniqueId(),
       createDate: currentInvoice?.createDate || today(),
+
       status: currentInvoice?.status || 'draft',
-      // discount: currentInvoice?.discount || 0,
-      //totalAmount: currentInvoice?.totalAmount || 0,
+
       items: currentInvoice?.items || [
         {
           numero: '',
+          type: 'Nouvelle',
           nom: '',
+          prenom: '',
           nationalite: '',
           fonction: '',
-          type: '',
-          price: 0,
-          total: 0,
         },
       ],
     }),
@@ -97,24 +111,61 @@ export function DeclarationNew({ currentInvoice }) {
     loadingSend.onTrue();
 
     try {
+      // Ajouter le statut "soumise" à la donnée
+      data.status = 'soumise';
+
+      // Formater les champs de date si nécessaire (exemple: `created_at` ou `date_field`)
+      if (data.date_field) {
+        const date = new Date(data.date_field);
+        data.date_field = date.toISOString().split('T')[0]; // Convertit en YYYY-MM-DD
+      }
+
+      // Simuler un délai pour des actions asynchrones (optionnel)
       await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Envoyer les données au backend via axios
+      const response = await axios.post('http://127.0.0.1:8000/api/declarations/create/', data, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Afficher la réponse du backend dans la console (optionnel)
+      console.log('Réponse du backend:', response.data);
+
+      // Réinitialiser le formulaire après succès
       reset();
+
+      // Arrêter le chargement
       loadingSend.onFalse();
+
+      // Rediriger l'utilisateur
       router.push(paths.dashboard.declaration.list);
-      console.info('DATA', JSON.stringify(data, null, 2));
     } catch (error) {
-      console.error(error);
+      console.error("Erreur lors de l'envoi au backend:", error);
+
+      // Arrêter le chargement en cas d'erreur
       loadingSend.onFalse();
+
+      // Gérer les erreurs spécifiques
+      if (error.response) {
+        console.error('Erreur avec le serveur:', error.response.data);
+      } else if (error.request) {
+        console.error('Erreur avec la requête:', error.request);
+      } else {
+        console.error('Erreur générale:', error.message);
+      }
     }
   });
 
   return (
     <Form methods={methods}>
       <Card>
-        <DeclarationNewEditStatusDate />
+        <DeclarationEditStatusDate />
 
         <DeclarationNewEditDetails />
       </Card>
+
       <Stack justifyContent="flex-end" direction="row" spacing={2} sx={{ mt: 3 }}>
         <LoadingButton
           color="inherit"
@@ -132,7 +183,7 @@ export function DeclarationNew({ currentInvoice }) {
           loading={loadingSend.value && isSubmitting}
           onClick={handleCreateAndSend}
         >
-          {currentInvoice ? 'Mettre à jour' : 'Créer'} & Soumettre
+          {currentInvoice ? 'Mettre A jour' : 'Soumettre'}
         </LoadingButton>
       </Stack>
     </Form>

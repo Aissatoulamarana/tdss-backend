@@ -34,7 +34,6 @@ export function DeclarationTableRow({
   onValidateRow,
 }) {
   const confirm = useBoolean();
-  const confrimValidate = useBoolean();
 
   const popover = usePopover();
 
@@ -55,19 +54,41 @@ export function DeclarationTableRow({
               disableTypography
               primary={
                 <Typography variant="body2" noWrap>
-                  {row.declarationNumber}
+                  {row.declaration_number}
                 </Typography>
               }
             />
           </Stack>
         </TableCell>
-        <TableCell>{row.type}</TableCell>
-        <TableCell>{row.items.length}</TableCell>
-        <TableCell>{fDate(new Date(row.createDate))}</TableCell>
+
+        <TableCell>{row.items_count}</TableCell>
+
+        <TableCell>
+          <ListItemText
+            primary={fDate(row.create_date)}
+            secondary={fTime(row.create_date)}
+            primaryTypographyProps={{ typography: 'body2', noWrap: true }}
+            secondaryTypographyProps={{ mt: 0.5, component: 'span', typography: 'caption' }}
+          />
+        </TableCell>
 
         <TableCell>{fCurrency(row.totalAmount)}</TableCell>
 
-        <TableCell>{row.status}</TableCell>
+        <TableCell>
+          <Label
+            variant="soft"
+            color={
+              (row.status === 'soumise' && 'success') ||
+              (row.status === 'pending' && 'warning') ||
+              (row.status === 'overdue' && 'error') ||
+              'default'
+            }
+          >
+            {row.status}
+          </Label>
+        </TableCell>
+
+        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
 
         <TableCell align="right" sx={{ px: 1 }}>
           <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
@@ -105,11 +126,11 @@ export function DeclarationTableRow({
 
           <MenuItem
             onClick={() => {
-              confrimValidate.onTrue();
+              onValidateRow();
               popover.onClose();
             }}
           >
-            <Iconify icon="material-symbols:check-circle-rounded" />
+            <Iconify icon="solar:pen-bold" />
             Valider
           </MenuItem>
 
@@ -129,26 +150,10 @@ export function DeclarationTableRow({
       </CustomPopover>
 
       <ConfirmDialog
-        open={confrimValidate.value}
-        onClose={confrimValidate.onFalse}
-        title="Valider"
-        content={
-          <>
-            Etes vous sûr de vouloir valider <strong> {row.length} </strong> déclaration(s)?
-          </>
-        }
-        action={
-          <Button variant="contained" color="primary" onClick={onValidateRow}>
-            Valider
-          </Button>
-        }
-      />
-
-      <ConfirmDialog
         open={confirm.value}
         onClose={confirm.onFalse}
         title="Supprimer"
-        content="Etes vous sûr de vouloir supprimer ?"
+        content="Are you sure want to delete?"
         action={
           <Button variant="contained" color="error" onClick={onDeleteRow}>
             Supprimer

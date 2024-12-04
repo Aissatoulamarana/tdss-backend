@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-
+import { useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -27,7 +27,7 @@ import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { varAlpha } from 'src/theme/styles';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
+import { INVOICE_SERVICE_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -51,12 +51,12 @@ import { DeclarationTableRow } from '../declaration-table-row';
 import { DeclarationSummary } from '../declaration-analytic';
 import { InvoiceTableToolbar } from '../declaration-table-toolbar';
 import { InvoiceTableFiltersResult } from '../declaration-table-filters';
+import axios from 'axios';
 
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
   { id: 'invoiceNumber', label: 'Déclaration' },
-  { id: 'type', label: 'Type de declaration' },
   { id: 'Number', label: 'Nombre Personnel' },
   { id: 'createDate', label: 'Date de Création' },
   { id: 'price', label: 'Facture' },
@@ -76,7 +76,9 @@ export function DeclarationListView() {
 
   const confirm = useBoolean();
 
-  const [tableData, setTableData] = useState(_invoices);
+  const [tableData, setTableData] = useState([]);
+  const [loading, setLoading] = useState(true); // État pour indiquer le chargement
+  const [error, setError] = useState(null); // État pour gérer les erreurs
 
   const filters = useSetState({
     name: '',
@@ -196,6 +198,30 @@ export function DeclarationListView() {
     },
     [filters, table]
   );
+
+  useEffect(() => {
+    // Fonction pour récupérer les données
+    const fetchDeclarations = async () => {
+      try {
+        const response = await axios.get('http://127.0.0.1:8000/api/declarations/'); // Remplacez l'URL par celle de votre backend
+        setTableData(response.data); // Assurez-vous que votre API renvoie un tableau
+      } catch (err) {
+        setError(err.message || 'Erreur lors du chargement des données.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDeclarations();
+  }, []); // La dépendance vide signifie que cette fonction est appelée une fois au montage
+
+  if (loading) {
+    return <div>Chargement des données...</div>;
+  }
+
+  if (error) {
+    return <div>Erreur : {error}</div>;
+  }
 
   return (
     <>
@@ -385,7 +411,7 @@ export function DeclarationListView() {
                       <DeclarationTableRow
                         key={row.id}
                         row={row}
-                        selected={table.selected.includes(row.id)}
+                        selected={table.selected.includes(row.id)} // Vérifie que selected est un tableau
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onViewRow={() => handleViewRow(row.id)}
                         onEditRow={() => handleEditRow(row.id)}
@@ -423,7 +449,8 @@ export function DeclarationListView() {
         title="Supprimer"
         content={
           <>
-            Etes vous sûr de vouloir supprimer <strong> {table.selected.length} </strong> items?
+            Etes vous sûr de vouloir supprimer <strong> {table.selected.length} </strong>{' '}
+            declarations?
           </>
         }
         action={
