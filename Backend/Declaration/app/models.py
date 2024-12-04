@@ -6,7 +6,7 @@ from datetime import datetime
 class Declaration(models.Model):
     declaration_number = models.CharField(max_length=50, unique=True)
     create_date = models.DateField()
-    status = models.CharField(max_length=20, default='draft')  # 'draft' ou 'soumise'
+    status = models.CharField(max_length=20, default='Brouillon')  # 'draft' ou 'soumise'
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

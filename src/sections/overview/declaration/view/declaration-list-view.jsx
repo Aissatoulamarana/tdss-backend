@@ -177,9 +177,26 @@ export function DeclarationListView() {
     },
     [router]
   );
+
   const handleValidateRow = useCallback(
-    (id) => {
-      router.push(paths.dashboard.factures.list);
+    async (id) => {
+      try {
+        // Appel à l'API backend pour valider la déclaration
+        const response = await axios.post(`http://127.0.0.1:8000/validate-declaration/${id}/`);
+
+        if (response.data.success) {
+          // Si succès, rediriger ou mettre à jour l'interface utilisateur
+          console.log('Déclaration validée:', response.data.message);
+          alert('Déclaration validée avec succès.');
+          router.push(paths.dashboard.factures.list);
+        } else {
+          console.error('Erreur lors de la validation:', response.data.error);
+          alert('Une erreur est survenue.');
+        }
+      } catch (error) {
+        console.error('Erreur réseau ou serveur:', error);
+        alert('Erreur lors de la communication avec le serveur.');
+      }
     },
     [router]
   );
@@ -216,11 +233,11 @@ export function DeclarationListView() {
   }, []); // La dépendance vide signifie que cette fonction est appelée une fois au montage
 
   if (loading) {
-    return <div>Chargement des données...</div>;
+    console.info('Loading declarations...');
   }
 
   if (error) {
-    return <div>Erreur : {error}</div>;
+    console.error('Error: ' + error);
   }
 
   return (

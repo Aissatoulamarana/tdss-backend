@@ -32,7 +32,7 @@ export function DeclarationNewEditStatusDate() {
         label="Status"
         InputLabelProps={{ shrink: true }}
       >
-        {['paid', 'pending', 'overdue', 'draft'].map((option) => (
+        {['Validée', 'Soumise', 'Rejettée', 'Brouillon'].map((option) => (
           <MenuItem key={option} value={option} sx={{ textTransform: 'capitalize' }}>
             {option}
           </MenuItem>

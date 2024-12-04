@@ -78,9 +78,10 @@ export function DeclarationTableRow({
           <Label
             variant="soft"
             color={
-              (row.status === 'soumise' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'overdue' && 'error') ||
+              (row.status === 'Validée' && 'success') ||
+              (row.status === 'Soumise' && 'success') ||
+              (row.status === 'Brouillon' && 'warning') ||
+              (row.status === 'Rejettée' && 'error') ||
               'default'
             }
           >
