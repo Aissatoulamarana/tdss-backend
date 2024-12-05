@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-
+import { useState, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -26,7 +26,7 @@ import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { varAlpha } from 'src/theme/styles';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
+import { INVOICE_SERVICE_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -54,9 +54,9 @@ import { FactureTableFilters } from '../factures-table-filters';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'invoiceNumber', label: 'Numero Facture' },
+  { id: 'facture', label: 'Numero Facture' },
   { id: 'numero', label: 'Numero Déclaration' },
-  { id: 'type', label: 'Type Déclaration' },
+
   { id: 'price', label: 'Montant' },
   { id: 'createDate', label: 'Date ' },
   { id: 'status', label: 'Status' },
@@ -75,7 +75,9 @@ export function FactureListView() {
 
   const confirm = useBoolean();
 
-  const [tableData, setTableData] = useState(_invoices);
+  const [tableData, setTableData] = useState([]);
+  const [loading, setLoading] = useState(true); // État pour indiquer le chargement
+  const [error, setError] = useState(null); // État pour gérer les erreurs
 
   const filters = useSetState({
     name: '',
@@ -131,7 +133,7 @@ export function FactureListView() {
       value: 'pending',
       label: 'En attente',
       color: 'warning',
-      count: getInvoiceLength('pending'),
+      count: getInvoiceLength('non payée'),
     },
   ];
 
@@ -182,6 +184,53 @@ export function FactureListView() {
     },
     [filters, table]
   );
+
+  const handlePaidRow = useCallback(
+    async (id) => {
+      try {
+        // Appel à l'API backend pour valider la déclaration
+        const response = await axios.post(`http://127.0.0.1:8000/paid-facture/${id}/`);
+
+        if (response.data.success) {
+          // Si succès, rediriger ou mettre à jour l'interface utilisateur
+          console.log('Facture payée:', response.data.message);
+          toast.success('facture payée avec success !');
+          router.push(paths.dashboard.factures.list);
+        } else {
+          console.error('Erreur lors du paiement:', response.data.error);
+          toast.error('Une erreur est survenue.');
+        }
+      } catch (error) {
+        console.error('Erreur réseau ou serveur:', error);
+        alert('Erreur lors de la communication avec le serveur.');
+      }
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    // Fonction pour récupérer les données
+    const fetchFactures = async () => {
+      try {
+        const response = await axios.get('http://127.0.0.1:8000/list-factures/'); // Remplacez l'URL par celle de votre backend
+        setTableData(response.data); // Assurez-vous que votre API renvoie un tableau
+      } catch (err) {
+        setError(err.message || 'Erreur lors du chargement des données.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFactures();
+  }, []); // La dépendance vide signifie que cette fonction est appelée une fois au montage
+
+  if (loading) {
+    console.info('Loading declarations...');
+  }
+
+  if (error) {
+    console.error('Error: ' + error);
+  }
 
   return (
     <>
@@ -354,6 +403,7 @@ export function FactureListView() {
                         onViewRow={() => handleViewRow(row.id)}
                         onEditRow={() => handleEditRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
+                        onPaidRow={() => handlePaidRow(row.id)}
                       />
                     ))}
 

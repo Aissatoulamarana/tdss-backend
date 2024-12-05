@@ -72,15 +72,15 @@ export function DeclarationTableRow({
           />
         </TableCell>
 
-        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+        <TableCell>{fCurrency(row.montant_facture)}</TableCell>
 
         <TableCell>
           <Label
             variant="soft"
             color={
-              (row.status === 'Validée' && 'success') ||
-              (row.status === 'Soumise' && 'success') ||
-              (row.status === 'Brouillon' && 'warning') ||
+              (row.status === 'validée' && 'success') ||
+              (row.status === 'soumise' && 'info') ||
+              (row.status === 'draft' && 'warning') ||
               (row.status === 'Rejettée' && 'error') ||
               'default'
             }
@@ -88,8 +88,6 @@ export function DeclarationTableRow({
             {row.status}
           </Label>
         </TableCell>
-
-        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
 
         <TableCell align="right" sx={{ px: 1 }}>
           <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>

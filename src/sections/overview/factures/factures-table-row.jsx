@@ -23,7 +23,15 @@ import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-export function FactureTableRow({ row, selected, onSelectRow, onViewRow, onEditRow, onDeleteRow }) {
+export function FactureTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onViewRow,
+  onEditRow,
+  onDeleteRow,
+  onPaidRow,
+}) {
   const confirm = useBoolean();
 
   const popover = usePopover();
@@ -45,21 +53,21 @@ export function FactureTableRow({ row, selected, onSelectRow, onViewRow, onEditR
               disableTypography
               primary={
                 <Typography variant="body2" noWrap>
-                  {row.invoiceNumber}
+                  {row.numero_facture}
                 </Typography>
               }
             />
           </Stack>
         </TableCell>
 
-        <TableCell>{row.invoiceNumber}</TableCell>
-        <TableCell>{row.invoiceTo.name}</TableCell>
-        <TableCell>{fCurrency(row.totalAmount)}</TableCell>
+        <TableCell>{row.declaration__declaration_number}</TableCell>
+
+        <TableCell>{fCurrency(row.montant)}</TableCell>
 
         <TableCell>
           <ListItemText
-            primary={fDate(row.createDate)}
-            secondary={fTime(row.createDate)}
+            primary={fDate(row.created_at)}
+            secondary={fTime(row.created_at)}
             primaryTypographyProps={{ typography: 'body2', noWrap: true }}
             secondaryTypographyProps={{ mt: 0.5, component: 'span', typography: 'caption' }}
           />
@@ -69,13 +77,13 @@ export function FactureTableRow({ row, selected, onSelectRow, onViewRow, onEditR
           <Label
             variant="soft"
             color={
-              (row.status === 'paid' && 'success') ||
+              (row.status === 'Paid' && 'success') ||
               (row.status === 'pending' && 'warning') ||
-              (row.status === 'overdue' && 'error') ||
+              (row.status === 'non payée' && 'error') ||
               'default'
             }
           >
-            {row.status}
+            {row.statut}
           </Label>
         </TableCell>
 
@@ -114,7 +122,7 @@ export function FactureTableRow({ row, selected, onSelectRow, onViewRow, onEditR
           </MenuItem>
           <MenuItem
             onClick={() => {
-              onEditRow();
+              confirm.onTrue();
               popover.onClose();
             }}
           >
@@ -128,9 +136,9 @@ export function FactureTableRow({ row, selected, onSelectRow, onViewRow, onEditR
         open={confirm.value}
         onClose={confirm.onFalse}
         title="Payer"
-        content="Are you sure want to delete?"
+        content="Voulez-vous payer cette facture ?"
         action={
-          <Button variant="contained" color="error" onClick={onDeleteRow}>
+          <Button variant="contained" color="success" onClick={onPaidRow}>
             Payer
           </Button>
         }

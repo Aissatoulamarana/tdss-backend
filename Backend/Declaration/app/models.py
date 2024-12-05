@@ -35,3 +35,24 @@ class Item(models.Model):
 
     def __str__(self):
         return f"{self.nom} {self.prenom} - {self.type}"
+
+class Facture(models.Model):
+    numero_facture = models.CharField(max_length=50, unique=True)
+    declaration = models.OneToOneField(Declaration, on_delete=models.CASCADE, related_name='facture')
+    montant = models.DecimalField(max_digits=10, decimal_places=2)
+    statut = models.CharField(max_length=20, default='Non payée')  # 'payée' ou 'non payée'
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def calculate_montant(declaration_type):
+        tarifs = {
+            'Nouvelle': 100.00,      # Montant pour une nouvelle déclaration
+            'Renouvellement': 50.00, # Montant pour un renouvellement
+            'Duplicata': 30.00       # Montant pour un duplicata
+        }
+        return tarifs.get(declaration_type, 0.00)  # Par défaut, 0 si le type n'est pas trouvé
+
+    def __str__(self):
+        return f"Facture {self.numero_facture} - {self.montant} {self.statut}"
+

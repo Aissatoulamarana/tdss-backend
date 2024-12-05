@@ -64,7 +64,7 @@ export function DeclarationNew({ currentInvoice }) {
       declarationNumber: currentInvoice?.declarationNumber || generateUniqueId(),
       createDate: currentInvoice?.createDate || today(),
 
-      status: currentInvoice?.status || 'draft',
+      status: currentInvoice?.status || 'brouillon',
 
       items: currentInvoice?.items || [
         {

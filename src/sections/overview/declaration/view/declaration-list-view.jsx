@@ -128,20 +128,26 @@ export function DeclarationListView() {
       value: 'submit',
       label: 'Soumise',
       color: 'warnning',
-      count: getInvoiceLength('pending'),
+      count: getInvoiceLength('soumise'),
     },
     {
       value: 'success',
       label: 'Validées',
       color: 'success',
-      count: getInvoiceLength('success'),
+      count: getInvoiceLength('validée'),
+    },
+    {
+      value: 'warning',
+      label: 'Brouillon',
+      color: 'warning',
+      count: getInvoiceLength('draft'),
     },
 
     {
       value: 'reject',
       label: 'Rejetées',
       color: 'error',
-      count: getInvoiceLength('draft'),
+      count: getInvoiceLength('rejettée'),
     },
   ];
 
@@ -187,11 +193,11 @@ export function DeclarationListView() {
         if (response.data.success) {
           // Si succès, rediriger ou mettre à jour l'interface utilisateur
           console.log('Déclaration validée:', response.data.message);
-          alert('Déclaration validée avec succès.');
+          toast.success('declaration validée avec success !');
           router.push(paths.dashboard.factures.list);
         } else {
           console.error('Erreur lors de la validation:', response.data.error);
-          alert('Une erreur est survenue.');
+          toast.error('Une erreur est survenue.');
         }
       } catch (error) {
         console.error('Erreur réseau ou serveur:', error);
@@ -428,7 +434,7 @@ export function DeclarationListView() {
                       <DeclarationTableRow
                         key={row.id}
                         row={row}
-                        selected={table.selected.includes(row.id)} // Vérifie que selected est un tableau
+                        selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onViewRow={() => handleViewRow(row.id)}
                         onEditRow={() => handleEditRow(row.id)}
