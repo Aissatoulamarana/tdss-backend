@@ -189,7 +189,7 @@ export function DeclarationListView() {
     async (id) => {
       try {
         // Appel à l'API backend pour valider la déclaration
-        const response = await axios.post(API.validateDeclaration(declarationId));
+        const response = await axios.post(API.validateDeclaration(id));
 
         if (response.data.success) {
           // Si succès, rediriger ou mettre à jour l'interface utilisateur
