@@ -22,6 +22,8 @@ import { fData } from 'src/utils/format-number';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
+import API from 'src/utils/api';
+import axios from 'axios';
 
 // ----------------------------------------------------------------------
 
@@ -90,6 +92,11 @@ export function UserNewEditForm({ currentUser }) {
   const onSubmit = handleSubmit(async (data) => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await axios.post(API.createUser(), data, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       reset();
       toast.success(currentUser ? 'Mis à jour effectué!' : "Création d'un utilisateur reussie !");
       router.push(paths.dashboard.user.list);

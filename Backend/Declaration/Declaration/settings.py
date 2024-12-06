@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -139,3 +140,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 NEXT_BUILD_DIR = "path/to/nextjs/.next"  # Chemin vers le dossier `.next` généré par Next.js
 NEXT_PUBLIC_DIR = "path/to/nextjs/public"  # Chemin vers le dossier `public` de Next.js
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -1,12 +1,14 @@
 from django.db import models
 from datetime import datetime
+from django.contrib.auth.models import AbstractUser, Group, Permission
+
 # Create your models here.
 
 
 class Declaration(models.Model):
     declaration_number = models.CharField(max_length=50, unique=True)
     create_date = models.DateField()
-    status = models.CharField(max_length=20, default='draft')  # 'draft' ou 'soumise'
+    status = models.CharField(max_length=20, default='Brouillon')  # 'draft' ou 'soumise'
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -35,3 +37,45 @@ class Item(models.Model):
 
     def __str__(self):
         return f"{self.nom} {self.prenom} - {self.type}"
+
+class Facture(models.Model):
+    numero_facture = models.CharField(max_length=50, unique=True)
+    declaration = models.OneToOneField(Declaration, on_delete=models.CASCADE, related_name='facture')
+    montant = models.DecimalField(max_digits=10, decimal_places=2)
+    statut = models.CharField(max_length=20, default='Non payée')  # 'payée' ou 'non payée'
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def calculate_montant(declaration_type):
+        tarifs = {
+            'Nouvelle': 100.00,      # Montant pour une nouvelle déclaration
+            'Renouvellement': 50.00, # Montant pour un renouvellement
+            'Duplicata': 30.00       # Montant pour un duplicata
+        }
+        return tarifs.get(declaration_type, 0.00)  # Par défaut, 0 si le type n'est pas trouvé
+
+    def __str__(self):
+        return f"Facture {self.numero_facture} - {self.montant} {self.statut}"
+
+
+
+class CustomUser(AbstractUser):
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    country = models.CharField(max_length=50, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    company = models.CharField(max_length=100, null=True, blank=True)
+    role = models.CharField(max_length=50, null=True, blank=True)
+    status = models.CharField(max_length=20, default='inactif')
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
+
+    groups = models.ManyToManyField(
+        Group,
+        related_name="customuser_groups",  # Nouveau related_name
+        blank=True
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        related_name="customuser_permissions",  # Nouveau related_name
+        blank=True
+    )

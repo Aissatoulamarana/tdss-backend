@@ -64,7 +64,7 @@ export function DeclarationNew({ currentInvoice }) {
       declarationNumber: currentInvoice?.declarationNumber || generateUniqueId(),
       createDate: currentInvoice?.createDate || today(),
 
-      status: currentInvoice?.status || 'draft',
+      status: currentInvoice?.status || 'brouillon',
 
       items: currentInvoice?.items || [
         {
@@ -97,6 +97,12 @@ export function DeclarationNew({ currentInvoice }) {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await axios.post('http://127.0.0.1:8000/api/declarations/create/', data, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Réponse du backend:', response.data);
       reset();
       loadingSave.onFalse();
       router.push(paths.dashboard.declaration.list);

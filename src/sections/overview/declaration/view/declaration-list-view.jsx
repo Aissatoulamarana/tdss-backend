@@ -52,6 +52,7 @@ import { DeclarationSummary } from '../declaration-analytic';
 import { InvoiceTableToolbar } from '../declaration-table-toolbar';
 import { InvoiceTableFiltersResult } from '../declaration-table-filters';
 import axios from 'axios';
+import API from 'src/utils/api';
 
 // ----------------------------------------------------------------------
 
@@ -128,20 +129,26 @@ export function DeclarationListView() {
       value: 'submit',
       label: 'Soumise',
       color: 'warnning',
-      count: getInvoiceLength('pending'),
+      count: getInvoiceLength('soumise'),
     },
     {
       value: 'success',
       label: 'Validées',
       color: 'success',
-      count: getInvoiceLength('success'),
+      count: getInvoiceLength('validée'),
+    },
+    {
+      value: 'warning',
+      label: 'Brouillon',
+      color: 'warning',
+      count: getInvoiceLength('draft'),
     },
 
     {
       value: 'reject',
       label: 'Rejetées',
       color: 'error',
-      count: getInvoiceLength('draft'),
+      count: getInvoiceLength('rejettée'),
     },
   ];
 
@@ -177,9 +184,26 @@ export function DeclarationListView() {
     },
     [router]
   );
+
   const handleValidateRow = useCallback(
-    (id) => {
-      router.push(paths.dashboard.factures.list);
+    async (id) => {
+      try {
+        // Appel à l'API backend pour valider la déclaration
+        const response = await axios.post(API.validateDeclaration(id));
+
+        if (response.data.success) {
+          // Si succès, rediriger ou mettre à jour l'interface utilisateur
+          console.log('Déclaration validée:', response.data.message);
+          toast.success('declaration validée avec success !');
+          router.push(paths.dashboard.factures.list);
+        } else {
+          console.error('Erreur lors de la validation:', response.data.error);
+          toast.error('Une erreur est survenue.');
+        }
+      } catch (error) {
+        console.error('Erreur réseau ou serveur:', error);
+        alert('Erreur lors de la communication avec le serveur.');
+      }
     },
     [router]
   );
@@ -203,7 +227,7 @@ export function DeclarationListView() {
     // Fonction pour récupérer les données
     const fetchDeclarations = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/api/declarations/'); // Remplacez l'URL par celle de votre backend
+        const response = await axios.get(API.listDeclarations());
         setTableData(response.data); // Assurez-vous que votre API renvoie un tableau
       } catch (err) {
         setError(err.message || 'Erreur lors du chargement des données.');
@@ -216,11 +240,11 @@ export function DeclarationListView() {
   }, []); // La dépendance vide signifie que cette fonction est appelée une fois au montage
 
   if (loading) {
-    return <div>Chargement des données...</div>;
+    console.info('Loading declarations...');
   }
 
   if (error) {
-    return <div>Erreur : {error}</div>;
+    console.error('Error: ' + error);
   }
 
   return (
@@ -411,7 +435,7 @@ export function DeclarationListView() {
                       <DeclarationTableRow
                         key={row.id}
                         row={row}
-                        selected={table.selected.includes(row.id)} // Vérifie que selected est un tableau
+                        selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onViewRow={() => handleViewRow(row.id)}
                         onEditRow={() => handleEditRow(row.id)}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-
+import { useState, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -26,7 +26,7 @@ import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { varAlpha } from 'src/theme/styles';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _invoices, INVOICE_SERVICE_OPTIONS } from 'src/_mock';
+import { INVOICE_SERVICE_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -50,16 +50,17 @@ import { FactureAnalytic } from '../factures-analytics';
 import { FactureTableRow } from '../factures-table-row';
 import { FactureTableToolbar } from '../factures-table-toolbar';
 import { FactureTableFilters } from '../factures-table-filters';
+import API from 'src/utils/api';
 
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'invoiceNumber', label: 'Numero Facture' },
+  { id: 'facture', label: 'Numero Facture' },
   { id: 'numero', label: 'Numero Déclaration' },
-  { id: 'type', label: 'Type Déclaration' },
+
   { id: 'price', label: 'Montant' },
   { id: 'createDate', label: 'Date ' },
-  { id: 'status', label: 'Status' },
+  { id: 'statut', label: 'Statut' },
 
   { id: '' },
 ];
@@ -75,12 +76,14 @@ export function FactureListView() {
 
   const confirm = useBoolean();
 
-  const [tableData, setTableData] = useState(_invoices);
+  const [tableData, setTableData] = useState([]);
+  const [loading, setLoading] = useState(true); // État pour indiquer le chargement
+  const [error, setError] = useState(null); // État pour gérer les erreurs
 
   const filters = useSetState({
     name: '',
     service: [],
-    status: 'all',
+    statut: 'all',
     startDate: null,
     endDate: null,
   });
@@ -99,20 +102,20 @@ export function FactureListView() {
   const canReset =
     !!filters.state.name ||
     filters.state.service.length > 0 ||
-    filters.state.status !== 'all' ||
+    filters.state.statut !== 'all' ||
     (!!filters.state.startDate && !!filters.state.endDate);
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const getInvoiceLength = (status) => tableData.filter((item) => item.status === status).length;
+  const getInvoiceLength = (statut) => tableData.filter((item) => item.statut === statut).length;
 
-  const getTotalAmount = (status) =>
+  const getTotalAmount = (statut) =>
     sumBy(
-      tableData.filter((item) => item.status === status),
-      (invoice) => invoice.totalAmount
+      tableData.filter((item) => item.statut === statut),
+      (facture) => facture.montant
     );
 
-  const getPercentByStatus = (status) => (getInvoiceLength(status) / tableData.length) * 100;
+  const getPercentByStatus = (statut) => (getInvoiceLength(statut) / tableData.length) * 100;
 
   const TABS = [
     {
@@ -131,7 +134,7 @@ export function FactureListView() {
       value: 'pending',
       label: 'En attente',
       color: 'warning',
-      count: getInvoiceLength('pending'),
+      count: getInvoiceLength('non payée'),
     },
   ];
 
@@ -178,10 +181,57 @@ export function FactureListView() {
   const handleFilterStatus = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      filters.setState({ status: newValue });
+      filters.setState({ statut: newValue });
     },
     [filters, table]
   );
+
+  const handlePaidRow = useCallback(
+    async (id) => {
+      try {
+        // Appel à l'API backend pour valider la déclaration
+        const response = await axios.post(`http://127.0.0.1:8000/paid-facture/${id}/`);
+
+        if (response.data.success) {
+          // Si succès, rediriger ou mettre à jour l'interface utilisateur
+          console.log('Facture payée:', response.data.message);
+          toast.success('facture payée avec success !');
+          router.push(paths.dashboard.factures.list);
+        } else {
+          console.error('Erreur lors du paiement:', response.data.error);
+          toast.error('Une erreur est survenue.');
+        }
+      } catch (error) {
+        console.error('Erreur réseau ou serveur:', error);
+        alert('Erreur lors de la communication avec le serveur.');
+      }
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    // Fonction pour récupérer les données
+    const fetchFactures = async () => {
+      try {
+        const response = await axios.get(API.listFactures()); // Remplacez l'URL par celle de votre backend
+        setTableData(response.data); // Assurez-vous que votre API renvoie un tableau
+      } catch (err) {
+        setError(err.message || 'Erreur lors du chargement des données.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFactures();
+  }, []); // La dépendance vide signifie que cette fonction est appelée une fois au montage
+
+  if (loading) {
+    console.info('Loading declarations...');
+  }
+
+  if (error) {
+    console.error('Error: ' + error);
+  }
 
   return (
     <>
@@ -238,7 +288,7 @@ export function FactureListView() {
 
         <Card sx={{ mb: { xs: 3, md: 5 } }} lg={12}>
           <Tabs
-            value={filters?.state?.status || []}
+            value={filters?.state?.statut || []}
             onChange={handleFilterStatus}
             sx={{
               px: 2.5,
@@ -254,7 +304,7 @@ export function FactureListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === filters.state.status) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === filters.state.statut) && 'filled') ||
                       'soft'
                     }
                     color={tab.color}
@@ -354,6 +404,7 @@ export function FactureListView() {
                         onViewRow={() => handleViewRow(row.id)}
                         onEditRow={() => handleEditRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
+                        onPaidRow={() => handlePaidRow(row.id)}
                       />
                     ))}
 
@@ -407,7 +458,7 @@ export function FactureListView() {
 }
 
 function applyFilter({ inputData, comparator, filters, dateError }) {
-  const { name, status, service, startDate, endDate } = filters;
+  const { name, statut, service, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -427,8 +478,8 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
     );
   }
 
-  if (status !== 'all') {
-    inputData = inputData.filter((invoice) => invoice.status === status);
+  if (statut !== 'all') {
+    inputData = inputData.filter((facture) => facture.statut === statut);
   }
 
   if (service.length) {
