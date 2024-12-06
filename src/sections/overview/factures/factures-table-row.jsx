@@ -77,9 +77,9 @@ export function FactureTableRow({
           <Label
             variant="soft"
             color={
-              (row.status === 'Paid' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'non payée' && 'error') ||
+              (row.statut === 'paid' && 'success') ||
+              (row.statut === 'En attente' && 'warning') ||
+              (row.statut === 'Non payée' && 'error') ||
               'default'
             }
           >

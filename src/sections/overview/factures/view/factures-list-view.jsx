@@ -50,6 +50,7 @@ import { FactureAnalytic } from '../factures-analytics';
 import { FactureTableRow } from '../factures-table-row';
 import { FactureTableToolbar } from '../factures-table-toolbar';
 import { FactureTableFilters } from '../factures-table-filters';
+import API from 'src/utils/api';
 
 // ----------------------------------------------------------------------
 
@@ -59,7 +60,7 @@ const TABLE_HEAD = [
 
   { id: 'price', label: 'Montant' },
   { id: 'createDate', label: 'Date ' },
-  { id: 'status', label: 'Status' },
+  { id: 'statut', label: 'Statut' },
 
   { id: '' },
 ];
@@ -82,7 +83,7 @@ export function FactureListView() {
   const filters = useSetState({
     name: '',
     service: [],
-    status: 'all',
+    statut: 'all',
     startDate: null,
     endDate: null,
   });
@@ -101,20 +102,20 @@ export function FactureListView() {
   const canReset =
     !!filters.state.name ||
     filters.state.service.length > 0 ||
-    filters.state.status !== 'all' ||
+    filters.state.statut !== 'all' ||
     (!!filters.state.startDate && !!filters.state.endDate);
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
-  const getInvoiceLength = (status) => tableData.filter((item) => item.status === status).length;
+  const getInvoiceLength = (statut) => tableData.filter((item) => item.statut === statut).length;
 
-  const getTotalAmount = (status) =>
+  const getTotalAmount = (statut) =>
     sumBy(
-      tableData.filter((item) => item.status === status),
-      (invoice) => invoice.totalAmount
+      tableData.filter((item) => item.statut === statut),
+      (facture) => facture.montant
     );
 
-  const getPercentByStatus = (status) => (getInvoiceLength(status) / tableData.length) * 100;
+  const getPercentByStatus = (statut) => (getInvoiceLength(statut) / tableData.length) * 100;
 
   const TABS = [
     {
@@ -180,7 +181,7 @@ export function FactureListView() {
   const handleFilterStatus = useCallback(
     (event, newValue) => {
       table.onResetPage();
-      filters.setState({ status: newValue });
+      filters.setState({ statut: newValue });
     },
     [filters, table]
   );
@@ -212,7 +213,7 @@ export function FactureListView() {
     // Fonction pour récupérer les données
     const fetchFactures = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/list-factures/'); // Remplacez l'URL par celle de votre backend
+        const response = await axios.get(API.listFactures()); // Remplacez l'URL par celle de votre backend
         setTableData(response.data); // Assurez-vous que votre API renvoie un tableau
       } catch (err) {
         setError(err.message || 'Erreur lors du chargement des données.');
@@ -287,7 +288,7 @@ export function FactureListView() {
 
         <Card sx={{ mb: { xs: 3, md: 5 } }} lg={12}>
           <Tabs
-            value={filters?.state?.status || []}
+            value={filters?.state?.statut || []}
             onChange={handleFilterStatus}
             sx={{
               px: 2.5,
@@ -303,7 +304,7 @@ export function FactureListView() {
                 icon={
                   <Label
                     variant={
-                      ((tab.value === 'all' || tab.value === filters.state.status) && 'filled') ||
+                      ((tab.value === 'all' || tab.value === filters.state.statut) && 'filled') ||
                       'soft'
                     }
                     color={tab.color}
@@ -457,7 +458,7 @@ export function FactureListView() {
 }
 
 function applyFilter({ inputData, comparator, filters, dateError }) {
-  const { name, status, service, startDate, endDate } = filters;
+  const { name, statut, service, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index]);
 
@@ -477,8 +478,8 @@ function applyFilter({ inputData, comparator, filters, dateError }) {
     );
   }
 
-  if (status !== 'all') {
-    inputData = inputData.filter((invoice) => invoice.status === status);
+  if (statut !== 'all') {
+    inputData = inputData.filter((facture) => facture.statut === statut);
   }
 
   if (service.length) {

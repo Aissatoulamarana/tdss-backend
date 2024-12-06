@@ -52,6 +52,7 @@ import { DeclarationSummary } from '../declaration-analytic';
 import { InvoiceTableToolbar } from '../declaration-table-toolbar';
 import { InvoiceTableFiltersResult } from '../declaration-table-filters';
 import axios from 'axios';
+import API from 'src/utils/api';
 
 // ----------------------------------------------------------------------
 
@@ -188,7 +189,7 @@ export function DeclarationListView() {
     async (id) => {
       try {
         // Appel à l'API backend pour valider la déclaration
-        const response = await axios.post(`http://127.0.0.1:8000/validate-declaration/${id}/`);
+        const response = await axios.post(API.validateDeclaration(declarationId));
 
         if (response.data.success) {
           // Si succès, rediriger ou mettre à jour l'interface utilisateur
@@ -226,7 +227,7 @@ export function DeclarationListView() {
     // Fonction pour récupérer les données
     const fetchDeclarations = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/api/declarations/'); // Remplacez l'URL par celle de votre backend
+        const response = await axios.get(API.listDeclarations());
         setTableData(response.data); // Assurez-vous que votre API renvoie un tableau
       } catch (err) {
         setError(err.message || 'Erreur lors du chargement des données.');

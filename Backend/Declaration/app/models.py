@@ -1,5 +1,7 @@
 from django.db import models
 from datetime import datetime
+from django.contrib.auth.models import AbstractUser, Group, Permission
+
 # Create your models here.
 
 
@@ -56,3 +58,24 @@ class Facture(models.Model):
     def __str__(self):
         return f"Facture {self.numero_facture} - {self.montant} {self.statut}"
 
+
+
+class CustomUser(AbstractUser):
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    country = models.CharField(max_length=50, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    company = models.CharField(max_length=100, null=True, blank=True)
+    role = models.CharField(max_length=50, null=True, blank=True)
+    status = models.CharField(max_length=20, default='inactif')
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
+
+    groups = models.ManyToManyField(
+        Group,
+        related_name="customuser_groups",  # Nouveau related_name
+        blank=True
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        related_name="customuser_permissions",  # Nouveau related_name
+        blank=True
+    )
