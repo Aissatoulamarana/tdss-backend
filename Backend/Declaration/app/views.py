@@ -12,16 +12,24 @@ from django.shortcuts import get_object_or_404
 from django.core.files.storage import FileSystemStorage
 
 
+
+
 @csrf_exempt
 def create_declaration(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
+
+            # Création de la déclaration
             declaration = Declaration.objects.create(
                 declaration_number=data.get('declarationNumber'),
                 create_date=data.get('createDate'),
                 status=data.get('status', 'brouillon'),
             )
+
+            total_montant = 0  # Variable pour accumuler le montant total
+
+            # Création des éléments associés à la déclaration
             items = data.get('items', [])
             for item in items:
                 Item.objects.create(
@@ -33,25 +41,34 @@ def create_declaration(request):
                     prenom=item['prenom'],
                     nom=item['nom'],
                 )
-                 # Génération de la facture
-            montant = Facture.calculate_montant(data.get('type', 'Nouvelle'))
-            numero_facture = f"FAC-{declaration.declaration_number}"
-            Facture.objects.create(
-                numero_facture=numero_facture,
-                declaration=declaration,
-                montant=montant,
-            )
-            return JsonResponse({"message": "Declaration created successfully"}, status=201)
+
+                # Calcul du montant pour cet item en fonction du type
+                if item['type'] == 'Nouvelle':
+                    total_montant += 100.00
+                elif item['type'] == 'Renouvellement':
+                    total_montant += 50.00
+                elif item['type'] == 'Duplicata':
+                    total_montant += 30.00
+                else:
+                    total_montant += 0.00  # Si le type n'est pas reconnu, on ne l'ajoute pas
+
+            # Mise à jour du montant total sur la déclaration
+            declaration.montant = total_montant
+            declaration.save()
+
+            return JsonResponse({"message": "Déclaration créée avec succès", "montant": total_montant}, status=201)
+        
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    return JsonResponse({"error": "Méthode de requête invalide"}, status=405)
 
 def list_declarations(request):
     if request.method == "GET":
         # Ajoutez une annotation pour inclure le montant de la facture
         declarations = Declaration.objects.annotate(
             items_count=Count('items'),
-            montant_facture=F('facture__montant')  # Utilise la relation avec Facture
+            montant_facture=F('montant')  # Utilise la relation avec Facture
         ).values(
             'id', 'declaration_number', 'create_date', 'status', 'items_count', 'montant_facture'
         )
@@ -59,7 +76,26 @@ def list_declarations(request):
         return JsonResponse(list(declarations), safe=False)
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
-
+@csrf_exempt
+def get_declaration_details(request, declaration_id):
+    if request.method == "GET":
+        declaration = Declaration.objects.get(id=declaration_id)
+        
+        # Récupérer les éléments associés
+        items = Item.objects.filter(declaration=declaration).values(
+            "numero", "prenom", "nom", "fonction", "nationalite"
+        )
+        
+        return JsonResponse({
+            "id": declaration.id,
+            "declaration_number": declaration.declaration_number,
+            "create_date": declaration.create_date,
+            "status": declaration.status,
+            "montant": declaration.montant,
+            "items": list(items),  # Inclure les éléments associés
+        }, status=200)
+    
+    return JsonResponse({"error": "Méthode de requête invalide"}, status=405)
 @csrf_exempt
 def validate_declaration(request, declaration_id):
     if request.method == "POST":
@@ -69,10 +105,90 @@ def validate_declaration(request, declaration_id):
             # Mettre à jour le statut
             declaration.status = 'validée'
             declaration.save()
+
+           
+
             return JsonResponse({"success": True, "message": "Déclaration validée avec succès."})
         except Declaration.DoesNotExist:
             return JsonResponse({"success": False, "error": "Déclaration non trouvée."}, status=404)
     return JsonResponse({"success": False, "error": "Méthode non autorisée."}, status=405)
+
+@csrf_exempt
+def facturer_declarations(request, declaration_id):
+    if request.method == 'POST':
+        try:
+            # Récupérer la déclaration par ID
+            declaration = Declaration.objects.get(id=declaration_id)
+            print(f"Déclaration trouvée : {declaration}")
+
+            # Vérification que la déclaration n'a pas déjà été facturée
+            if declaration.status == 'facturée':
+                return JsonResponse({
+                    "success": False,
+                    "error": "La déclaration a déjà été facturée."
+                }, status=400)
+
+            # Mettre à jour le statut de la déclaration à 'facturée'
+            declaration.status = 'facturée'
+            declaration.save()
+
+            # Utiliser directement le montant de la déclaration
+            montant = declaration.montant
+            print(f"Montant de la déclaration : {montant}")
+
+            # Génération du numéro de facture
+            numero_facture = f"FAC-{declaration.declaration_number}"
+
+            # Création de la facture avec le même montant que la déclaration
+            facture = Facture.objects.create(
+                numero_facture=numero_facture,
+                declaration=declaration,
+                montant=montant,
+            )
+            facture.save()
+
+            return JsonResponse({
+                "success": True,
+                "message": "Déclaration facturée avec succès.",
+                "facture": {
+                    "numero": facture.numero_facture,
+                    "montant": facture.montant,
+                }
+            })
+
+        except Declaration.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Déclaration non trouvée."}, status=404)
+        except Exception as e:
+            return JsonResponse({
+                "success": False, 
+                "error": "Une erreur est survenue lors de la facturation.",
+                "details": str(e)
+            }, status=500)
+
+    return JsonResponse({"success": False, "error": "Méthode non autorisée"}, status=405)
+
+
+
+@csrf_exempt
+def rejeter_declaration(request, declaration_id):
+    if request.method == "POST":
+        try:
+            # Vérifier si l'ID est valide
+            declaration_id = int(declaration_id)
+            # Récupérer la déclaration par ID
+            declaration = Declaration.objects.get(id=declaration_id)
+            # Mettre à jour le statut
+            declaration.status = 'rejetée'
+            declaration.save()
+            return JsonResponse({"success": True, "message": "Déclaration rejetée avec succès."})
+        except ValueError:
+            return JsonResponse({"success": False, "error": "ID de déclaration invalide."}, status=400)
+        except Declaration.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Déclaration non trouvée."}, status=404)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "error": "Méthode non autorisée"}, status=405)
 
 @csrf_exempt
 def paid_facture(request, facture_id):

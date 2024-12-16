@@ -5,6 +5,7 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django_nextjs.proxy import NextJSProxyHttpConsumer, NextJSProxyWebsocketConsumer
 from django.conf import settings
+from .consumers import DeclarationConsumer
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Declaration.settings')
 
@@ -22,6 +23,10 @@ if settings.DEBUG:
     
     # Route WebSocket pour la gestion de HMR (Hot Module Replacement) Next.js
     websocket_routers.insert(0, path("_next/webpack-hmr", NextJSProxyWebsocketConsumer.as_asgi()))
+
+    websocket_routers.append(
+    path('ws/declarations/', DeclarationConsumer.as_asgi())
+)
 
 # Application du routage pour HTTP et WebSocket
 application = ProtocolTypeRouter(

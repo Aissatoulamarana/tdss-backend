@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django_nextjs',
     'app',
      'corsheaders',
+     'channels',
 ]
 
 MIDDLEWARE = [

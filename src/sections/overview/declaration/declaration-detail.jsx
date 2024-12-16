@@ -22,13 +22,13 @@ import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 import FilteredTable from './components/tableau';
 import { DeclarationToolbar } from './declaration-toolbar';
-import { INVOICE_STATUS_OPTIONS } from 'src/_mock';
-// ----------------------------------------------------------------------
 
 // ----------------------------------------------------------------------
 
-export function DeclarationDetails({ invoice }, selected, onSelectRow) {
-  const [currentStatus, setCurrentStatus] = useState(invoice?.status);
+// ----------------------------------------------------------------------
+
+export function DeclarationDetails({ declaration }) {
+  const [currentStatus, setCurrentStatus] = useState(declaration?.status);
 
   const popover = usePopover();
 
@@ -39,10 +39,10 @@ export function DeclarationDetails({ invoice }, selected, onSelectRow) {
   return (
     <>
       <DeclarationToolbar
-        invoice={invoice}
+        declaration={declaration}
         currentStatus={currentStatus || ''}
         onChangeStatus={handleChangeStatus}
-        statusOptions={INVOICE_STATUS_OPTIONS}
+        statusOptions={status}
       />
       <Card sx={{ pt: 5, px: 5 }}>
         <Box
@@ -70,14 +70,14 @@ export function DeclarationDetails({ invoice }, selected, onSelectRow) {
               {currentStatus}
             </Label>
 
-            <Typography variant="h6">{invoice?.invoiceNumber}</Typography>
+            <Typography variant="h6"> {declaration?.declaration_number}</Typography>
           </Stack>
 
           <Stack sx={{ typography: 'body2' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Client
               <br />
-              {invoice?.invoiceFrom.name}
+              {declaration?.declaration_number}
             </Typography>
           </Stack>
 
@@ -85,7 +85,7 @@ export function DeclarationDetails({ invoice }, selected, onSelectRow) {
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Date de creation
             </Typography>
-            {fDate(invoice?.createDate)}
+            {fDate(declaration?.create_date)}
           </Stack>
         </Box>
         <Divider sx={{ mt: 5, borderStyle: 'dashed' }} mb={4} />

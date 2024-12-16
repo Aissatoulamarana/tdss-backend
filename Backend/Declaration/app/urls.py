@@ -16,4 +16,8 @@ urlpatterns = [
     path('users/create/', views.create_user, name='create_user'),
     path('users/<int:id>/delete/', views.delete_user, name='delete_user'),
     path('users/<int:id>/put', views.update_user, name='update_user'),
+    path('facturer-declaration/<int:declaration_id>/', views.facturer_declarations, name='facturer-declarations'),
+    path('rejeter-declaration/<int:declaration_id>/', views.rejeter_declaration, name='rejeter-declaration'),  
+    path('details-declaration/<int:declaration_id>', views.get_declaration_details, name='details-declaration'),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,5 +1,6 @@
 import { CONFIG } from 'src/config-global';
-import { _invoices } from 'src/_mock/_invoice';
+import API from 'src/utils/api';
+import axios from 'axios';
 
 import { DeclarationDetailsView } from 'src/sections/overview/declaration/view';
 
@@ -7,14 +8,24 @@ import { DeclarationDetailsView } from 'src/sections/overview/declaration/view';
 
 export const metadata = { title: `Déclaration details | Dashboard - ${CONFIG.appName}` };
 
-export default function Page({ params }) {
+export default async function Page({ params }) {
   const { id } = params;
 
-  const currentInvoice = _invoices.find((invoice) => invoice.id === id);
+  try {
+    // Récupérer les détails de la déclaration via l'API backend
+    const response = await axios.get(API.detailsDeclaration(id));
 
-  return <DeclarationDetailsView invoice={currentInvoice} />;
+    // Avec axios, les données sont accessibles via response.data
+    const declarationDetails = response.data;
+
+    return <DeclarationDetailsView declaration={declarationDetails} />;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des détails de la déclaration:', error);
+
+    // Affiche une erreur ou une page vide si les données ne peuvent pas être chargées
+    return <div>Erreur lors du chargement des détails de la déclaration.</div>;
+  }
 }
-
 // ----------------------------------------------------------------------
 
 /**
@@ -31,7 +42,15 @@ export { dynamic };
  */
 export async function generateStaticParams() {
   if (CONFIG.isStaticExport) {
-    return _invoices.map((invoice) => ({ id: invoice.id }));
+    // Si vous voulez générer les pages statiques, récupérez toutes les déclarations
+    const response = await fetch(API.detailsDeclaration(id));
+    if (!response.ok) {
+      throw new Error(`Erreur lors de la récupération des déclarations: ${response.statusText}`);
+    }
+
+    const declarations = await response.json();
+
+    return declarations.map((declaration) => ({ id: declaration.id }));
   }
   return [];
 }

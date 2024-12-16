@@ -141,14 +141,14 @@ export function DeclarationListView() {
       value: 'warning',
       label: 'Brouillon',
       color: 'warning',
-      count: getInvoiceLength('draft'),
+      count: getInvoiceLength('brouillon'),
     },
 
     {
       value: 'reject',
       label: 'Rejetées',
       color: 'error',
-      count: getInvoiceLength('rejettée'),
+      count: getInvoiceLength('rejetée'),
     },
   ];
 
@@ -195,7 +195,7 @@ export function DeclarationListView() {
           // Si succès, rediriger ou mettre à jour l'interface utilisateur
           console.log('Déclaration validée:', response.data.message);
           toast.success('declaration validée avec success !');
-          router.push(paths.dashboard.factures.list);
+          router.push(paths.dashboard.declaration.list);
         } else {
           console.error('Erreur lors de la validation:', response.data.error);
           toast.error('Une erreur est survenue.');
@@ -208,9 +208,64 @@ export function DeclarationListView() {
     [router]
   );
 
+  const handleFacturer = useCallback(
+    async (id) => {
+      try {
+        // Appel à l'API backend pour rejeter la déclaration
+        const response = await axios.post(API.facturerDeclaration(id));
+        if (response.data.success) {
+          // Si succès, rediriger ou mettre à jour l'interface utilisateur
+          console.log('Déclaration facturée:', response.data.message);
+          toast.success('Déclaration facturée avec succès !');
+          router.push(paths.dashboard.factures.list);
+        } else {
+          console.error('Erreur lors de la facturation:', response.data.error);
+          toast.error('Une erreur est survenue.');
+        }
+      } catch (error) {
+        console.error('Erreur réseau ou serveur:', error);
+        toast.error('Erreur lors de la communication avec le serveur.');
+      }
+    },
+    [router]
+  );
+
+  const handleRejetter = useCallback(
+    async (id) => {
+      try {
+        // Appel à l'API backend pour rejeter la déclaration
+        const response = await axios.post(API.rejetterDeclaration(id));
+        if (response.data.success) {
+          // Si succès, rediriger ou mettre à jour l'interface utilisateur
+          console.log('Déclaration rejetée:', response.data.message);
+          toast.success('Déclaration rejetée avec succès !');
+          router.push(paths.dashboard.declaration.list);
+        } else {
+          console.error('Erreur lors du rejet :', response.data.error);
+          toast.error('Une erreur est survenue.');
+        }
+      } catch (error) {
+        console.error('Erreur réseau ou serveur:', error);
+        toast.error('Erreur lors de la communication avec le serveur.');
+      }
+    },
+    [router]
+  );
+
   const handleViewRow = useCallback(
-    (id) => {
-      router.push(paths.dashboard.declaration.details(id));
+    async (id) => {
+      try {
+        const url = API.detailsDeclaration(id);
+        console.log('URL générée:', url); // Vérifiez ici si l'URL est correcte
+        const response = await axios.get(url);
+        if (response.data.success) {
+          router.push(paths.dashboard.declaration.details(id));
+        } else {
+          console.error('Erreur lors de la récupération des détails :', response.data.error);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des détails :', error);
+      }
     },
     [router]
   );
@@ -311,7 +366,7 @@ export function DeclarationListView() {
           <Grid2 size={{ xs: 6, md: 3 }}>
             <DeclarationSummary
               title="Brouillon"
-              total={getInvoiceLength('draft')}
+              total={getInvoiceLength('brouillon')}
               percent={getPercentByStatus('draft')}
               chart={{
                 colors: [theme.vars.palette.error.main],
@@ -441,6 +496,8 @@ export function DeclarationListView() {
                         onEditRow={() => handleEditRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         onValidateRow={() => handleValidateRow(row.id)}
+                        onFactureRow={() => handleFacturer(row.id)}
+                        onRejetRow={() => handleRejetter(row.id)}
                       />
                     ))}
 

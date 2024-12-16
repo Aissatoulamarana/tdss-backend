@@ -11,6 +11,7 @@ class Declaration(models.Model):
     status = models.CharField(max_length=20, default='Brouillon')  # 'draft' ou 'soumise'
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    montant = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     def save(self, *args, **kwargs):
         if isinstance(self.create_date, str):
@@ -42,7 +43,7 @@ class Facture(models.Model):
     numero_facture = models.CharField(max_length=50, unique=True)
     declaration = models.OneToOneField(Declaration, on_delete=models.CASCADE, related_name='facture')
     montant = models.DecimalField(max_digits=10, decimal_places=2)
-    statut = models.CharField(max_length=20, default='Non payée')  # 'payée' ou 'non payée'
+    statut = models.CharField(max_length=20, default='En attente')  # 'payée' ou 'non payée'
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

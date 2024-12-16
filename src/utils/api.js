@@ -12,6 +12,9 @@ const API = {
   createUser: () => `${BASE_URL}/users/create/`, // Création d'un utilisateur
   deleteUser: (id) => `${BASE_URL}/users/${id}/delete/`, // Suppression d'un utilisateur
   updateUser: (id) => `${BASE_URL}/users/${id}/put`, // Mise à jour d'un utilisateur
+  facturerDeclaration: (declarationId) => `${BASE_URL}/facturer-declaration/${declarationId}/`, // Validation d'une déclaration
+  rejetterDeclaration: (declarationId) => `${BASE_URL}/rejeter-declaration/${declarationId}/`, // Rejetter une déclaration
+  detailsDeclaration: (declarationId) => `${BASE_URL}/details-declaration/${declarationId}/`, // Voir les details d'une déclaration
 };
 
 export default API;

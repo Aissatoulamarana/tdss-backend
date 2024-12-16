@@ -10,20 +10,20 @@ import { DeclarationDetails } from '../declaration-detail';
 
 // ----------------------------------------------------------------------
 
-export function DeclarationDetailsView({ invoice }) {
+export function DeclarationDetailsView({ declaration }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading={invoice?.invoiceNumber}
+        heading={declaration?.declaration_number}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Declarations', href: paths.dashboard.declaration.list },
-          { name: invoice?.invoiceNumber },
+          { name: declaration?.declaration_number },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <DeclarationDetails invoice={invoice} />
+      <DeclarationDetails declaration={declaration} />
     </DashboardContent>
   );
 }

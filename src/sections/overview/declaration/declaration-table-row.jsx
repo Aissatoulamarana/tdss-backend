@@ -32,6 +32,8 @@ export function DeclarationTableRow({
   onEditRow,
   onDeleteRow,
   onValidateRow,
+  onFactureRow,
+  onRejetRow,
 }) {
   const confirm = useBoolean();
 
@@ -80,8 +82,8 @@ export function DeclarationTableRow({
             color={
               (row.status === 'validée' && 'success') ||
               (row.status === 'soumise' && 'info') ||
-              (row.status === 'draft' && 'warning') ||
-              (row.status === 'Rejettée' && 'error') ||
+              (row.status === 'brouillon' && 'warning') ||
+              (row.status === 'rejetée' && 'error') ||
               'default'
             }
           >
@@ -122,17 +124,40 @@ export function DeclarationTableRow({
             <Iconify icon="solar:pen-bold" />
             Modifier
           </MenuItem>
+          {!['validée', 'facturée', 'rejetée'].includes(row.status) && (
+            <MenuItem
+              onClick={() => {
+                onValidateRow();
+                popover.onClose();
+              }}
+            >
+              <Iconify icon="mdi:check-bold" />
+              Valider
+            </MenuItem>
+          )}
+          {!['rejetée', 'facturée', 'validée'].includes(row.status) && (
+            <MenuItem
+              onClick={() => {
+                onRejetRow();
+                popover.onClose();
+              }}
+            >
+              <Iconify icon="material-symbols:cancel" />
+              Rejetter
+            </MenuItem>
+          )}
 
-          <MenuItem
-            onClick={() => {
-              onValidateRow();
-              popover.onClose();
-            }}
-          >
-            <Iconify icon="solar:pen-bold" />
-            Valider
-          </MenuItem>
-
+          {!['facturée', 'rejetée', 'brouillon', 'soumise'].includes(row.status) && (
+            <MenuItem
+              onClick={() => {
+                onFactureRow();
+                popover.onClose();
+              }}
+            >
+              <Iconify icon="mdi:credit-card" />
+              Facturer
+            </MenuItem>
+          )}
           <Divider sx={{ borderStyle: 'dashed' }} />
 
           <MenuItem
@@ -152,7 +177,7 @@ export function DeclarationTableRow({
         open={confirm.value}
         onClose={confirm.onFalse}
         title="Supprimer"
-        content="Are you sure want to delete?"
+        content="Voulezè-vous vraiment supprimer?"
         action={
           <Button variant="contained" color="error" onClick={onDeleteRow}>
             Supprimer
