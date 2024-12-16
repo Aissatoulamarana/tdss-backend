@@ -177,9 +177,16 @@ export function DeclarationTableRow({
         open={confirm.value}
         onClose={confirm.onFalse}
         title="Supprimer"
-        content="Voulezè-vous vraiment supprimer?"
+        content="Voulez-vous vraiment supprimer?"
         action={
-          <Button variant="contained" color="error" onClick={onDeleteRow}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              confirm.onTrue(); // Ferme la boîte de dialogue
+              onDeleteRow(); // Appelle la fonction de suppression
+            }}
+          >
             Supprimer
           </Button>
         }

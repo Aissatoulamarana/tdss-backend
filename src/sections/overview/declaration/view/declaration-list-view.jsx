@@ -151,19 +151,21 @@ export function DeclarationListView() {
       count: getInvoiceLength('rejetée'),
     },
   ];
-
-  const handleDeleteRow = useCallback(
-    (id) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-      toast.success('Suppression reussie!');
-
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
-    },
-    [dataInPage.length, table, tableData]
-  );
+  const handleDeleteRow = async (id) => {
+    try {
+      const response = await axios.delete(API.supprimerDeclaration(id));
+      if (response.data.success) {
+        console.log('Déclaration supprimée:', response.data.message);
+        alert('Déclaration supprimée avec succès !');
+      } else {
+        console.error('Erreur lors de la suppression:', response.data.error);
+        alert('Erreur : ' + response.data.error);
+      }
+    } catch (error) {
+      console.error('Erreur réseau ou serveur:', error);
+      alert('Une erreur est survenue lors de la communication avec le serveur.');
+    }
+  };
 
   const handleDeleteRows = useCallback(() => {
     const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));

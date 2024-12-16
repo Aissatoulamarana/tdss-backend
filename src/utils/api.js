@@ -15,6 +15,7 @@ const API = {
   facturerDeclaration: (declarationId) => `${BASE_URL}/facturer-declaration/${declarationId}/`, // Validation d'une déclaration
   rejetterDeclaration: (declarationId) => `${BASE_URL}/rejeter-declaration/${declarationId}/`, // Rejetter une déclaration
   detailsDeclaration: (declarationId) => `${BASE_URL}/details-declaration/${declarationId}/`, // Voir les details d'une déclaration
+  supprimerDeclaration: (declarationId) => `${BASE_URL}/supprimer-declaration/${declarationId}/`, // Supprimer une déclaration
 };
 
 export default API;

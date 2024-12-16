@@ -18,6 +18,7 @@ urlpatterns = [
     path('users/<int:id>/put', views.update_user, name='update_user'),
     path('facturer-declaration/<int:declaration_id>/', views.facturer_declarations, name='facturer-declarations'),
     path('rejeter-declaration/<int:declaration_id>/', views.rejeter_declaration, name='rejeter-declaration'),  
-    path('details-declaration/<int:declaration_id>', views.get_declaration_details, name='details-declaration'),
+    path('details-declaration/<int:declaration_id>/', views.get_declaration_details, name='details-declaration'),
+    path('supprimer-declaration/<int:declaration_id>/', views.supprimer_declaration , name='supprimer-declaration'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

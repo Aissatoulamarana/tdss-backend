@@ -191,6 +191,26 @@ def rejeter_declaration(request, declaration_id):
     return JsonResponse({"success": False, "error": "Méthode non autorisée"}, status=405)
 
 @csrf_exempt
+def supprimer_declaration(request, declaration_id):
+    if request.method == 'DELETE':
+        try:
+            # Récupérer la déclaration par son ID
+            declaration = Declaration.objects.get(id=declaration_id)
+            
+            # Supprimer la déclaration
+            declaration.delete()
+            
+            return JsonResponse({"success": True, "message": "Déclaration supprimée avec succès."})
+        
+        except Declaration.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Déclaration non trouvée."}, status=404)
+        
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+    
+    return JsonResponse({"success": False, "error": "Méthode non autorisée."}, status=405)
+
+@csrf_exempt
 def paid_facture(request, facture_id):
     if request.method == "POST":
         try:
