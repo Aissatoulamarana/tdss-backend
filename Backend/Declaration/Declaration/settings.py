@@ -45,9 +45,9 @@ INSTALLED_APPS = [
     # 'django_nextjs.apps.DjangoNextJSConfig',
     'django_nextjs',
     'app',
-     'corsheaders',
-     'channels',
-     'rest_framework_simplejwt',
+    'corsheaders',
+    'channels',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
