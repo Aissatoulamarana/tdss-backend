@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
     'app',
      'corsheaders',
      'channels',
+     'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -56,7 +58,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-      'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+   
+
 ]
 
 ROOT_URLCONF = 'Declaration.urls'
@@ -144,3 +148,38 @@ NEXT_PUBLIC_DIR = "path/to/nextjs/public"  # Chemin vers le dossier `public` de 
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+NEXTJS_SETTINGS = {
+    "nextjs_server_url": "http://127.0.0.1:3033",  # L'URL de votre serveur Next.js
+   
+}
+
+AUTHENTICATION_BACKENDS = [
+    'app.backend.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # Durée du token d'accès
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Durée du refresh token
+}
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+MAILGUN_API_KEY = "ta_cle_api_mailgun"
+MAILGUN_DOMAIN = "ton_domaine_mailgun"
+EMAIL_HOST = "smtp.mailgun.org"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = f"postmaster@{MAILGUN_DOMAIN}"
+EMAIL_HOST_PASSWORD = MAILGUN_API_KEY
+DEFAULT_FROM_EMAIL = f"noreply@{MAILGUN_DOMAIN}"

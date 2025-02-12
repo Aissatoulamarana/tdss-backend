@@ -1,16 +1,28 @@
-from django.shortcuts import render
+
 from django.db.models import Count, F
 # Create your views here.
+from django.contrib.auth import get_user_model
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Declaration, Item, Facture, CustomUser
-
+from .models import Declaration, Item, Facture, CustomUser, fonction, Bank, Paiement, Payeur
+from django.core.exceptions import ValidationError
 from django.core.exceptions import ObjectDoesNotExist
 from django.views import View
 from django.shortcuts import get_object_or_404
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import default_storage
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
+from django.contrib.auth import authenticate
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth.decorators import login_required
+import jwt
+from django.conf import settings
 
 
 
@@ -70,7 +82,7 @@ def list_declarations(request):
             items_count=Count('items'),
             montant_facture=F('montant')  # Utilise la relation avec Facture
         ).values(
-            'id', 'declaration_number', 'create_date', 'status', 'items_count', 'montant_facture'
+            'id', 'declaration_number', 'create_date', 'status', 'items_count', 'montant_facture', 
         )
 
         return JsonResponse(list(declarations), safe=False)
@@ -83,7 +95,7 @@ def get_declaration_details(request, declaration_id):
         
         # Récupérer les éléments associés
         items = Item.objects.filter(declaration=declaration).values(
-            "numero", "prenom", "nom", "fonction", "nationalite"
+            "numero", "prenom", "nom", "fonction", "nationalite", "fonction_key__category", "permis"
         )
         
         return JsonResponse({
@@ -96,16 +108,84 @@ def get_declaration_details(request, declaration_id):
         }, status=200)
     
     return JsonResponse({"error": "Méthode de requête invalide"}, status=405)
+
+
+def details_factures(request, facture_id):
+    if request.method == 'GET':
+        try:
+            # Récupère la facture par son ID
+            facture = Facture.objects.get(id=facture_id)
+        except Facture.DoesNotExist:
+            return JsonResponse({"error": "Facture non trouvée."}, status=404)
+
+        # Récupération du payeur s'il existe
+        if facture.payeur is not None:
+            payeur = facture.payeur
+            payeur_data = {
+                'nom': payeur.nom,
+                'prenom': payeur.prenom,
+                'email': payeur.email,
+                'telephone': payeur.telephone,
+                'pays': payeur.pays,
+                'date_enregistrement': payeur.date_enregistrement,
+                'numero_compte': payeur.numero_compte,
+            }
+        else:
+            payeur_data = None
+
+        # Récupération de l'utilisateur s'il existe
+        user = facture.user
+        if user is not None:
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'phone_number': user.phone_number,
+                'country': user.country,
+                'address': user.address,
+                'company': user.company,
+                'role': user.role,
+                'profile_image': user.profile_image.url if user.profile_image else None,
+                'status': user.status,
+            }
+        else:
+            user_data = None
+
+        # Préparation de la réponse JSON
+        response_data = {
+            'id': facture.id,
+            'numero_facture': facture.numero_facture,
+            'declaration_number': facture.declaration.declaration_number if facture.declaration else None,
+            'create_date': facture.created_at,
+            'montant_gnf': facture.montant_gnf,
+            'montant_usd': facture.montant_usd,
+            'statut': facture.statut,
+            'payeur': payeur_data,
+            'user': user_data,
+            'dec_date': facture.declaration.created_at
+        }
+
+        return JsonResponse(response_data)
+
+    return JsonResponse({"error": "Méthode non autorisée"}, status=405)
+
 @csrf_exempt
 def validate_declaration(request, declaration_id):
     if request.method == "POST":
         try:
             # Récupérer la déclaration par ID
             declaration = Declaration.objects.get(id=declaration_id)
+
+            if declaration.status == 'validée':
+                return JsonResponse({
+                    "success": False,
+                    "error": "La déclaration a déjà été validée."
+                }, status=400)
             # Mettre à jour le statut
+
             declaration.status = 'validée'
             declaration.save()
-
+            
            
 
             return JsonResponse({"success": True, "message": "Déclaration validée avec succès."})
@@ -210,25 +290,134 @@ def supprimer_declaration(request, declaration_id):
     
     return JsonResponse({"success": False, "error": "Méthode non autorisée."}, status=405)
 
+
 @csrf_exempt
 def paid_facture(request, facture_id):
     if request.method == "POST":
         try:
+            # Récupération de la facture
             facture = Facture.objects.get(id=facture_id)
+
+            if not facture.payeur:
+                return JsonResponse({"success": False, "error": "Aucun payeur associé à la facture."}, status=400)
+
+            # Vérification et extraction du token JWT
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return JsonResponse({"error": "Utilisateur non authentifié"}, status=401)
+
+            token = auth_header.split(" ")[1]
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                user = CustomUser.objects.get(id=payload["user_id"])
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({"error": "Token expiré"}, status=401)
+            except jwt.DecodeError:
+                return JsonResponse({"error": "Token invalide"}, status=401)
+            except CustomUser.DoesNotExist:
+                return JsonResponse({"error": "Utilisateur introuvable"}, status=404)
+
+            # Récupération des données envoyées
+            try:
+                data = json.loads(request.body)
+                banque_id = data.get('banque_id')
+            except json.JSONDecodeError:
+                return JsonResponse({"success": False, "error": "Format de données invalide."}, status=400)
+
+            # Vérifier si la banque existe
+            try:
+                bank = Bank.objects.get(id=banque_id, is_active=True)
+            except Bank.DoesNotExist:
+                return JsonResponse({"success": False, "error": "Banque invalide ou non disponible."}, status=400)
+
+            # Création du paiement
+            paiement = Paiement.objects.create(
+                facture=facture,
+                banque=bank,
+                utilisateur=user,  # Utilisation correcte de l'utilisateur authentifié
+            )
+
+            if facture.status == 'paid':
+                return JsonResponse({
+                    "success": False,
+                    "error": "La facture a déjà été payée."
+                }, status=400)
+
+            # Mise à jour du statut de la facture
             facture.statut = 'paid'
             facture.save()
-            return JsonResponse({"success": True, "message": "Facture payée avec succès."})
+
+            return JsonResponse({
+                "success": True,
+                "message": "Facture payée avec succès.",
+                "paiement_id": paiement.id
+            }, status=201)  # 201 Created
+
         except Facture.DoesNotExist:
-            return JsonResponse({"success": False, "error": "Facture non trouvée."}, status = 404)
-    return JsonResponse({"success": False, "error": "Méthode non autorisée"}, status = 404)
+            return JsonResponse({"success": False, "error": "Facture non trouvée."}, status=404)
+
+    return JsonResponse({"success": False, "error": "Méthode non autorisée"}, status=405)
+
+
+def list_paiements(request):
+    if request.method == "GET":
+        # Récupération de tous les paiements avec leurs objets liés pour éviter des requêtes supplémentaires
+        paiements = Paiement.objects.all().select_related(
+            'facture', 'facture__declaration', 'facture__payeur', 'banque', 'utilisateur'
+        )
+        
+        paiements_data = []
+        for paiement in paiements:
+            facture = paiement.facture
+            
+            # Récupérer le numéro de déclaration s'il existe
+            declaration_number = facture.declaration.declaration_number if facture.declaration else None
+            # Récupérer le nom de la banque
+            bank_name = paiement.banque.name if paiement.banque else None
+            # Récupérer la date du paiement
+            date_paiement = paiement.created
+            montantGnf = facture.montant_gnf
+            montantUsd = facture.montant_usd
+            
+            # Déterminer le nom et le prénom à afficher :
+            # Si la facture possède un payeur, on utilise ses informations.
+            # Sinon, on utilise les informations de l'utilisateur qui a effectué le paiement.
+            if facture.payeur is not None:
+                payer_nom = facture.payeur.nom
+                payer_prenom = facture.payeur.prenom
+            elif paiement.utilisateur is not None:
+                # On essaye d'utiliser first_name et last_name s'ils existent, sinon username pour le nom.
+                payer_nom = getattr(paiement.utilisateur, 'first_name', None) or paiement.utilisateur.username
+                payer_prenom = getattr(paiement.utilisateur, 'last_name', None) or ""
+            else:
+                payer_nom = ""
+                payer_prenom = ""
+            
+            paiements_data.append({
+                "numero_facture": facture.numero_facture,
+                "declaration_number": declaration_number,
+                "date_paiement": date_paiement,
+                "bank_name": bank_name,
+                "payer_nom": payer_nom,
+                "payer_prenom": payer_prenom,
+                "montantGN": montantGnf,
+                "montantUsd": montantUsd
+            })
+        
+        return JsonResponse(paiements_data, safe=False)
+    
+    return JsonResponse({"error": "Méthode non autorisée"}, status=405)
+
 
 def list_factures(request):
     if request.method == "GET":
         factures = Facture.objects.values(
-           'id', 'numero_facture', 'declaration__declaration_number', 'montant', 'statut', 'created_at'
+           'id', 'numero_facture', 'declaration__declaration_number', 'montant_usd', 'statut', 'created_at', 'montant_gnf'
         )
         return JsonResponse(list(factures), safe=False)
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
 
 
 
@@ -237,6 +426,21 @@ def user_list(request):
     if request.method == 'GET':
         users = CustomUser.objects.all().values('id', 'username', 'email', 'phone_number', 'country', 'address', 'company', 'role', 'profile_image', 'status', )
         return JsonResponse(list(users), safe=False)
+
+#Listes des fonctions 
+@csrf_exempt
+def list_fonction(request):
+    fonctions = fonction.objects.all().values('id', 'name', 'category', 'created_at')
+    
+    # Ajout de number_person à chaque fonction
+    fonctions_with_counts = []
+    for f in fonctions:
+        fonction_obj = fonction.objects.get(id=f['id'])
+        count = Item.objects.filter(fonction=fonction_obj).count()
+        f['number_person'] = count
+        fonctions_with_counts.append(f)
+
+    return JsonResponse({'fonctions': fonctions_with_counts}, safe=False)
 
 # Détails d'un utilisateur
 def user_detail(request, id):
@@ -251,22 +455,109 @@ def user_detail(request, id):
 def create_user(request):
     if request.method == 'POST':
         try:
+            # Charger les données JSON
             data = json.loads(request.body)
-            user = CustomUser.objects.create(
-                username=data.get('name'),
-                email=data.get('email'),
-                phone_number=data.get('phoneNumber'),
-                country=data.get('country'),
-                address=data.get('address'),
-                company=data.get('company'),
-                role=data.get('role'),
-                profile_image = request.FILES.get('profile_image')  # Récupérer l'image envoyée
+
+            # Récupérer et valider les champs requis
+            username=data.get('name')
+            email=data.get('email')
+            phone_number=data.get('phoneNumber')
+            country=data.get('country')
+            address=data.get('address')
+            company=data.get('company')
+            role=data.get('role')
+            password=data.get('password')
+            profile_image = request.FILES.get('profile_image')
+
+            # Vérification des champs obligatoires
+            required_fields = [username, email, password, role]
+            if not all(required_fields):
+                return JsonResponse({'error': 'Tous les champs obligatoires doivent être remplis'}, status=400)
+            # Validation de l'email
+            if not email or '@' not in email:
+                return JsonResponse({'error': 'Veuillez fournir une adresse email valide'}, status=400)
+
+            # Vérifier si le nom d'utilisateur existe déjà
+            if CustomUser.objects.filter(username=username).exists():
+                return JsonResponse({'error': 'Le nom d\'utilisateur est déjà pris'}, status=400)
+
+            # Vérifier si l'email existe déjà
+            if CustomUser.objects.filter(email=email).exists():
+                return JsonResponse({'error': 'Cette adresse email est déjà utilisée'}, status=400)
+
+            # Créer l'utilisateur
+            user = CustomUser(
+                username=username,
+                phone_number=phone_number,
+                email=email,
+                role=role,
+                country=country,
+                address=address,
+                company=company,
+                profile_image=profile_image
+
+               
             )
-            user.set_password(data.get('password'))  # Protéger le mot de passe
+
+            # Hachage du mot de passe avant de sauvegarder
+            user.set_password(password)
             user.save()
+
             return JsonResponse({'message': 'Utilisateur créé avec succès'}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Erreur de format JSON invalide'}, status=400)
+        except ValidationError as e:
+            return JsonResponse({'error': f'Erreur de validation : {str(e)}'}, status=400)
+        except Exception as e:
+            # Ajout d'un logging pour déboguer les erreurs serveur
+            print(f"Erreur inattendue : {str(e)}")  # Remplace par un logger en prod
+            return JsonResponse({'error': 'Une erreur est survenue lors de la création de l\'utilisateur'}, status=500)
+
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+@csrf_exempt
+def create_payeur(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            # Création de l'objet Payeur
+            payeur = Payeur.objects.create(
+                nom=data.get('nom'),
+                prenom=data.get('prenom'),
+                email=data.get('email'),
+                telephone=data.get('telephone'),
+                pays=data.get('pays'),
+                numero_compte=data.get('numero_compte'),
+                devise=data.get('devise'),
+            )
+            # Facultatif : sauvegarde explicite (bien que create() le fasse déjà)
+            payeur.save()
+
+            # Récupérer l'identifiant de la facture depuis les données reçues
+            facture_id = data.get('facture_id')
+            if facture_id:
+                try:
+                    facture = Facture.objects.get(id=facture_id)
+                    facture.payeur = payeur
+                    facture.save()
+                except Facture.DoesNotExist:
+                    return JsonResponse({'error': f'La facture avec l\'id {facture_id} n\'existe pas.'}, status=404)
+                except Exception as e:
+                    return JsonResponse({'error': f'Erreur lors de l\'association du payeur à la facture: {str(e)}'}, status=400)
+
+            return JsonResponse({
+            'message': 'Payeur créé et associé avec succès',
+            'payeur_id': payeur.id,
+            'facture_id': facture_id,
+           
+        }, status=201)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+
+
 
 # Supprimer un utilisateur
 @csrf_exempt
@@ -310,3 +601,328 @@ def update_user(request, id):
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
 
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+        
+#Créer une fonction 
+@csrf_exempt
+def create_fonction(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            Fonction = fonction.objects.create(
+                name=data.get('name'),
+                category=data.get('category'),
+            )
+            Fonction.save()
+            return JsonResponse({'message': 'Fonction créé avec succès'}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+#Voir details d'une fonction
+def fonction_detail(request, function_id):
+    """
+    Vue qui renvoie les détails d'une fonction avec le nombre de personnes associées.
+    """
+    if request.method == "GET":
+        try:
+            function_details = fonction.get_person_count_for_function(function_id)
+            return JsonResponse({"data": function_details}, status=200)
+        except fonction.DoesNotExist:
+            return JsonResponse({"error": "Fonction non trouvée"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+        
+#Supprimer une fonction
+@csrf_exempt
+def delete_fonction(request, function_id):
+    if request.method == "DELETE":
+        try:
+            function = fonction.objects.get(id = function_id)
+            function.delete()
+            return JsonResponse({"message": "Fonction supprimée avec succès"}, status=200)
+        except fonction.DoesNotExist:
+            return JsonResponse({"error": "Fonction non trouvée"}, status=404)
+        
+#Modifier Une fonction
+@csrf_exempt
+def put_fonction(request, function_id):
+    if request.method == "PUT":
+        try:
+            function = fonction.objects.get(id=function_id)
+            data = json.loads(request.body.decode('utf-8'))
+
+            if 'name' in data:
+                function.name = data['title']
+            if 'category' in data:
+                function.category = data['category']
+            function.save()
+            return JsonResponse({'message': 'Fonction updated successfully!'}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        
+        
+
+
+@csrf_exempt
+def move_declaration_items(request):
+    if request.method == 'POST':
+        try:
+            # Parse le corps de la requête
+            data = json.loads(request.body)
+            
+            # Liste des IDs des personnes sélectionnées
+            selected_ids = data.get('selected_ids', [])
+            # ID de la déclaration cible
+            target_declaration_number = data.get('target_declaration', None)
+
+            if not selected_ids or not target_declaration_number:
+                return JsonResponse({'error': 'Données invalides ou incomplètes.'}, status=400)
+            
+            # Récupère la déclaration cible
+            target_declaration = get_object_or_404(Declaration, declaration_number=target_declaration_number)
+            
+            # Met à jour les enregistrements sélectionnés
+            updated_count = Item.objects.filter(numero__in=selected_ids).update(declaration=target_declaration)
+
+            return JsonResponse({
+                'message': f'{updated_count} éléments déplacés vers la déclaration {target_declaration_number}.',
+                'target_declaration': target_declaration_number,
+            }, status=200)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Format JSON invalide.'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
+    
+
+@csrf_exempt
+def create_bank(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+
+            name = data.get('name')
+            identifier = data.get('identifier')
+            swift_code = data.get('swift_code', None)
+           
+
+            if not name or not identifier :
+                return JsonResponse(
+                    {'error': 'Les champs name, identifier et account_number sont obligatoires.'},
+                    status=400
+                )
+             # Vérification si la banque existe déjà (par name ou identifier)
+            if Bank.objects.filter(name=name).exists():
+                return JsonResponse(
+                    {'error': f'Une banque avec le nom "{name}" existe déjà.'},
+                    status=400
+                )
+            
+            if Bank.objects.filter(identifier=identifier).exists():
+                return JsonResponse(
+                    {'error': f'Une banque avec l’identifiant "{identifier}" existe déjà.'},
+                    status=400
+                )
+
+
+            # Création de la banque
+            bank = Bank.objects.create(
+                name=name,
+                identifier=identifier,
+                swift_code=swift_code,
+                
+            )
+
+            # Si un fichier est inclus dans la requête
+            if request.FILES.get('logo'):
+                logo_file = request.FILES['logo']
+                bank.logo.save(logo_file.name, logo_file)
+
+            return JsonResponse(
+                {'message': 'Banque créée avec succès.', 'bank_id': bank.id},
+                status=201
+            )
+
+        except json.JSONDecodeError:
+            return JsonResponse(
+                {'error': 'Données JSON invalides.'},
+                status=400
+            )
+
+    return JsonResponse({'error': 'Méthode non autorisée.'}, status=405)
+
+def bank_list(request):
+    if request.method == 'GET':
+        bank = Bank.objects.all().values('id', 'name', 'identifier', 'swift_code', 'logo', 'is_active',  )
+        return JsonResponse(list(bank), safe=False)
+
+def bank_detail(request, id):
+    try:
+        bank = CustomUser.objects.values('id', 'name', 'identifier', 'swift_code', 'logo', 'is_active' ).get(id=id)
+        return JsonResponse(bank, safe=False)
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'Banque non trouvée'}, status=404)
+    
+
+
+@csrf_exempt  # Si vous avez besoin de désactiver temporairement la protection CSRF
+def login_user(request):
+    if request.method == 'POST':
+        try:
+            # Charger les données JSON envoyées dans la requête
+            data = json.loads(request.body)
+
+            # Récupérer les valeurs des champs
+            email = data.get('email')
+            password = data.get('password')
+
+            # Vérifier si les champs sont fournis
+            if not email or not password:
+                return JsonResponse({'error': 'Nom d\'utilisateur et mot de passe sont requis'}, status=400)
+
+
+            # Utiliser authenticate pour valider l'utilisateur
+            user = authenticate(request, username=email, password=password)
+
+            if user is not None:
+                
+                # Génération du token JWT
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+                # Si l'utilisateur est authentifié avec succès
+                return JsonResponse({'message': 'Connexion réussie', 'user': email , 'access_token': access_token}, status=200)
+            else:
+                # Si l'authentification échoue
+                return JsonResponse({'error': 'Nom d\'utilisateur ou mot de passe incorrect'}, status=400)
+
+        except PermissionDenied as e:
+            # Si l'exception PermissionDenied est levée dans le backend, capturer et renvoyer le message personnalisé
+            return JsonResponse({'error': str(e)}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Erreur lors du traitement du JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Erreur lors de la connexion: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+
+
+def get_user_info(request):
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JsonResponse({"error": "Token manquant ou invalide"}, status=401)
+    
+    token = auth_header.split(" ")[1]  # Extraction du token
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        user = CustomUser.objects.get(id=payload["user_id"])  # Récupération de l'utilisateur
+
+        # Vérifier si l'image de profil existe et récupérer son URL
+        profile_image_url = user.profile_image.url if user.profile_image else None
+        
+        return JsonResponse({
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "company": user.company,
+                "role": user.role,
+                "phone_number": user.phone_number,
+                "address": user.address,
+                "country": user.country,
+                "status": user.status,
+                "profile_image": profile_image_url,
+            }
+        }, status=200)
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"error": "Token expiré"}, status=401)
+    except jwt.DecodeError:
+        return JsonResponse({"error": "Token invalide"}, status=401)
+    except user.DoesNotExist:
+        return JsonResponse({"error": "Utilisateur introuvable"}, status=404)
+
+
+@csrf_exempt
+def activate_user(request, user_id):
+    if request.method == 'POST':
+        try:
+            # Vérifier si l'utilisateur existe
+            try:
+                user = CustomUser.objects.get(id=user_id)
+            except CustomUser.DoesNotExist:
+                return JsonResponse({'error': "Utilisateur introuvable."}, status=404)
+
+            # Vérifier si le compte est déjà actif
+            if user.status == 'actif':
+                return JsonResponse({'message': "Le compte est déjà actif."}, status=200)
+
+            # Activer le compte
+            user.status = 'actif'
+            user.save()
+
+            return JsonResponse({'message': "Le compte a été activé avec succès."}, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': f"Erreur lors de l'activation du compte: {str(e)}"}, status=500)
+
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+@csrf_exempt
+def bannir_user(request, user_id):
+    if request.method == 'POST':
+        try:
+            # Vérifier si l'utilisateur existe
+            try:
+                user = CustomUser.objects.get(id=user_id)
+            except CustomUser.DoesNotExist:
+                return JsonResponse({'error': "Utilisateur introuvable."}, status=404)
+
+            # Vérifier si le compte est déjà actif
+            if user.status == 'Banni':
+                return JsonResponse({'message': "Le compte est déjà banni."}, status=200)
+
+            # Activer le compte
+            user.status = 'Banni'
+            user.save()
+
+            return JsonResponse({'message': "Le compte a été banni avec succès."}, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': f"Erreur lors du bannissement du compte: {str(e)}"}, status=500)
+
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+
+def search_passport(request):
+    """
+    Endpoint pour vérifier l'existence d'un passeport.
+    On attend une requête GET avec le paramètre 'numero' correspondant au numéro de passeport.
+    """
+    # Vérification manuelle de la méthode HTTP
+    if request.method != 'GET':
+        return JsonResponse(
+            {"error": "Méthode non autorisée. Seules les requêtes GET sont acceptées."},
+            status=405
+        )
+
+    # Récupération manuelle du paramètre 'numero'
+    numero = request.GET.get('numero')
+    if not numero:
+        return JsonResponse(
+            {"error": "Le paramètre 'numero' est requis."},
+            status=400
+        )
+
+    try:
+        # Vérifier si un item avec ce numéro de passeport existe
+        exists = Item.objects.filter(numero=numero).exists()
+        return JsonResponse({"exists": exists})
+    except Exception as e:
+        # En cas d'erreur, renvoyer une réponse avec le message d'erreur
+        return JsonResponse(
+            {"error": f"Une erreur est survenue : {str(e)}"},
+            status=500
+        )
