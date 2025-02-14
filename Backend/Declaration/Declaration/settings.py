@@ -27,7 +27,8 @@ SECRET_KEY = 'django-insecure-flp_mpc5m+3_rdch^!csojd8h%c0va+^c$3j@*gcaa4a-j#h#5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+
 
 NEXTJS_SETTINGS = {
         "nextjs_server_url": "http://127.0.0.1:3000",
