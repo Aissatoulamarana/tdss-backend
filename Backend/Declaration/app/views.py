@@ -13,8 +13,8 @@ from django.shortcuts import get_object_or_404
 from django.core.files.storage import default_storage
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-
-from django.contrib.auth import authenticate
+from django.core.files.base import ContentFile
+from django.contrib.auth import authenticate, login
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
@@ -23,17 +23,77 @@ from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
 import jwt
 from django.conf import settings
+import random
+import string
+from datetime import datetime
 
 
+@csrf_exempt  # Si vous avez besoin de désactiver temporairement la protection CSRF
+def login_user(request):
+    if request.method == 'POST':
+        try:
+            # Charger les données JSON envoyées dans la requête
+            data = json.loads(request.body)
+
+            # Récupérer les valeurs des champs
+            email = data.get('email')
+            password = data.get('password')
+
+            # Vérifier si les champs sont fournis
+            if not email or not password:
+                return JsonResponse({'error': 'Nom d\'utilisateur et mot de passe sont requis'}, status=400)
+
+            # Utiliser authenticate pour valider l'utilisateur
+            user = authenticate(request, username=email, password=password)
+
+            if user is not None:
+                # Connecter l'utilisateur à la requête
+                login(request, user)
+
+                # Génération du token JWT
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+
+                # Si l'utilisateur est authentifié avec succès
+                return JsonResponse({'message': 'Connexion réussie', 'user': email, 'access_token': access_token}, status=200)
+            else:
+                # Si l'authentification échoue
+                return JsonResponse({'error': 'Nom d\'utilisateur ou mot de passe incorrect'}, status=400)
+
+        except PermissionDenied as e:
+            # Si l'exception PermissionDenied est levée dans le backend, capturer et renvoyer le message personnalisé
+            return JsonResponse({'error': str(e)}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Erreur lors du traitement du JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Erreur lors de la connexion: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
 @csrf_exempt
 def create_declaration(request):
     if request.method == "POST":
         try:
+             # Vérification et extraction du token JWT
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return JsonResponse({"error": "Utilisateur non authentifié"}, status=401)
+
+            token = auth_header.split(" ")[1]
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                user = CustomUser.objects.get(id=payload["user_id"])
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({"error": "Token expiré"}, status=401)
+            except jwt.DecodeError:
+                return JsonResponse({"error": "Token invalide"}, status=401)
+            except CustomUser.DoesNotExist:
+                return JsonResponse({"error": "Utilisateur introuvable"}, status=404)
             data = json.loads(request.body)
 
             # Création de la déclaration
             declaration = Declaration.objects.create(
+                user=user,
                 declaration_number=data.get('declarationNumber'),
                 create_date=data.get('createDate'),
                 status=data.get('status', 'brouillon'),
@@ -44,25 +104,59 @@ def create_declaration(request):
             # Création des éléments associés à la déclaration
             items = data.get('items', [])
             for item in items:
+                print(f"Fonction recherchée : '{item['fonction']}'")  # Affiche ce qui est passé
+                try:
+                    fonction_instance = fonction.objects.get(name=item['fonction'])
+                except fonction.DoesNotExist:
+                    return JsonResponse({"error": f"Fonction '{item['fonction']}' non trouvée dans la base de données."}, status=400)
+
                 Item.objects.create(
                     declaration=declaration,
                     numero=item['numero'],
                     type=item['type'],
-                    fonction=item['fonction'],
+                    fonction=fonction_instance,
                     nationalite=item['nationalite'],
                     prenom=item['prenom'],
                     nom=item['nom'],
+                    empreinte=item.get('empreinte', None),
+                    signature=item.get('signature', None),
+                    recto=item.get('recto', None),
+                    verso=item.get('verso', None)
                 )
 
-                # Calcul du montant pour cet item en fonction du type
-                if item['type'] == 'Nouvelle':
-                    total_montant += 100.00
-                elif item['type'] == 'Renouvellement':
-                    total_montant += 50.00
-                elif item['type'] == 'Duplicata':
-                    total_montant += 30.00
-                else:
-                    total_montant += 0.00  # Si le type n'est pas reconnu, on ne l'ajoute pas
+                # Définition des montants en fonction du type et du permis
+                TARIFS = {
+                    'Nouvelle': {
+                        'A': 3600.00,
+                        'B': 2200.00,
+                        'C': 1200.00
+                    },
+                    'Renouvellement': {
+                        'A': 3000.00,
+                        'B': 1800.00,
+                        'C': 1000.00
+                    },
+                    'Duplicata': {
+                        'A': 1500.00,
+                        'B': 1000.00,
+                        'C': 500.00
+                    }
+                }
+
+                # Initialisation du montant total
+                total_montant = 0.00
+
+                # Calcul du montant en fonction du type et du permis
+                for item in items:
+                    type_demande = item.get('type')  # Récupérer le type de la demande
+                    type_permis = item.get('permis')  # Récupérer le type de permis
+
+                    # Vérification si le type de demande et le permis existent dans le dictionnaire
+                    if type_demande in TARIFS and type_permis in TARIFS[type_demande]:
+                        total_montant += TARIFS[type_demande][type_permis]
+                    else:
+                        total_montant += 0.00  # Aucun montant ajouté si la combinaison n'existe pas
+
 
             # Mise à jour du montant total sur la déclaration
             declaration.montant = total_montant
@@ -74,6 +168,7 @@ def create_declaration(request):
             return JsonResponse({"error": str(e)}, status=400)
 
     return JsonResponse({"error": "Méthode de requête invalide"}, status=405)
+
 
 def list_declarations(request):
     if request.method == "GET":
@@ -91,22 +186,36 @@ def list_declarations(request):
 @csrf_exempt
 def get_declaration_details(request, declaration_id):
     if request.method == "GET":
-        declaration = Declaration.objects.get(id=declaration_id)
-        
-        # Récupérer les éléments associés
-        items = Item.objects.filter(declaration=declaration).values(
-            "numero", "prenom", "nom", "fonction", "nationalite", "fonction_key__category", "permis"
-        )
-        
-        return JsonResponse({
-            "id": declaration.id,
-            "declaration_number": declaration.declaration_number,
-            "create_date": declaration.create_date,
-            "status": declaration.status,
-            "montant": declaration.montant,
-            "items": list(items),  # Inclure les éléments associés
-        }, status=200)
-    
+        try:
+            # Récupérer la déclaration
+            declaration = Declaration.objects.get(id=declaration_id)
+            
+            # Récupérer l'utilisateur associé
+          
+            user_info = {
+                    "username": declaration.user.username if declaration.user else None,
+                    "email": declaration.user.email if declaration.user else None,
+                    "company": declaration.user.company if declaration.user else None,
+                    "address": declaration.user.address if declaration.user else None,
+                    "telephone": declaration.user.phone_number if declaration.user else None
+                }
+            
+            # Récupérer les éléments associés avec optimisation
+            items = Item.objects.filter(declaration=declaration).select_related('fonction').values(
+                "numero", "prenom", "nom", "fonction__name", "nationalite", "fonction__category", "permis"
+            )
+            
+            return JsonResponse({
+                "id": declaration.id,
+                "declaration_number": declaration.declaration_number,
+                "create_date": declaration.create_date.strftime('%Y-%m-%d %H:%M:%S'),  # Format de la date
+                "status": declaration.status,
+                "user": user_info,  # Ajouter l'utilisateur
+                "items": list(items),  # Inclure les éléments associés
+            }, status=200)
+        except ObjectDoesNotExist:
+            return JsonResponse({"error": "Déclaration non trouvée"}, status=404)
+
     return JsonResponse({"error": "Méthode de requête invalide"}, status=405)
 
 
@@ -134,7 +243,7 @@ def details_factures(request, facture_id):
             payeur_data = None
 
         # Récupération de l'utilisateur s'il existe
-        user = facture.user
+        user = facture.declaration.user
         if user is not None:
             user_data = {
                 'id': user.id,
@@ -151,7 +260,51 @@ def details_factures(request, facture_id):
         else:
             user_data = None
 
-        # Préparation de la réponse JSON
+        # Récupérer les items associés à la déclaration
+        items = facture.declaration.items.all()
+
+        # Définition des tarifs (fixes comme dans ton exemple)
+        TARIFS = {
+            'Nouvelle': {'A': 3600.00, 'B': 2200.00, 'C': 1200.00},
+            'Renouvellement': {'A': 3000.00, 'B': 1800.00, 'C': 1000.00},
+            'Duplicata': {'A': 1500.00, 'B': 1000.00, 'C': 500.00}
+        }
+
+        # Dictionnaire pour stocker la somme des quantités pour chaque permis
+        permis_quantite = {'A': 0, 'B': 0, 'C': 0}
+
+        # Liste pour les détails des catégories
+        details_categories = []
+
+        # Comptage des permis et ajout dans le tableau
+        for item in items:
+            permis = item.permis  # "A", "B", ou "C"
+            type_permis = item.type  # "Renouvellement", "Duplicata", ou "Nouvelle"
+
+            # Si le permis est valide (A, B, ou C), incrémenter le compteur
+            if permis in permis_quantite:
+                permis_quantite[permis] += 1  # Ajouter 1 pour chaque occurrence du permis
+
+        # Créer un seul dictionnaire par type de permis avec la quantité
+        for permis, quantite in permis_quantite.items():
+            if quantite > 0:  # N'ajouter que si la quantité est > 0
+                # Trouver le prix unitaire pour ce permis
+                prix_unitaire = 0.00
+                for item in items:
+                    if item.permis == permis:
+                        type_permis = item.type  # "Renouvellement", "Duplicata", ou "Nouvelle"
+                        prix_unitaire = TARIFS.get(type_permis, {}).get(permis, 0.00)
+                        break
+
+                # Ajouter les détails dans le tableau
+                details_categories.append({
+                    'permis': permis,
+                    'quantite': quantite,
+                    'prix_unitaire': prix_unitaire,
+                    'category': item.fonction.category if item.fonction and item.fonction.category else None  # Catégorie de la fonction
+                })
+
+        # Préparer la réponse JSON avec les données
         response_data = {
             'id': facture.id,
             'numero_facture': facture.numero_facture,
@@ -161,13 +314,16 @@ def details_factures(request, facture_id):
             'montant_usd': facture.montant_usd,
             'statut': facture.statut,
             'payeur': payeur_data,
-            'user': user_data,
-            'dec_date': facture.declaration.created_at
+            'client': user_data,
+            'dec_date': facture.declaration.created_at,
+            'details': details_categories,  # Détails des items avec quantités spécifiques
         }
 
         return JsonResponse(response_data)
 
     return JsonResponse({"error": "Méthode non autorisée"}, status=405)
+
+
 
 @csrf_exempt
 def validate_declaration(request, declaration_id):
@@ -213,17 +369,28 @@ def facturer_declarations(request, declaration_id):
             declaration.save()
 
             # Utiliser directement le montant de la déclaration
-            montant = declaration.montant
-            print(f"Montant de la déclaration : {montant}")
+            montant_usd  = declaration.montant
+            print(f"Montant de la déclaration : {montant_usd }")
+
+            last_sequence = 0
+
+            now = datetime.now()
+            year = now.year
+            month = now.month 
+            next_sequence = last_sequence + 1
+
+            
 
             # Génération du numéro de facture
-            numero_facture = f"FAC-{declaration.declaration_number}"
+
+            numero_facture = f"FCT-{year}-{month:02d}-{next_sequence:03d}"
 
             # Création de la facture avec le même montant que la déclaration
             facture = Facture.objects.create(
                 numero_facture=numero_facture,
                 declaration=declaration,
-                montant=montant,
+                montant_usd=montant_usd ,
+                
             )
             facture.save()
 
@@ -232,7 +399,7 @@ def facturer_declarations(request, declaration_id):
                 "message": "Déclaration facturée avec succès.",
                 "facture": {
                     "numero": facture.numero_facture,
-                    "montant": facture.montant,
+                    "montant": facture.montant_usd,
                 }
             })
 
@@ -766,45 +933,6 @@ def bank_detail(request, id):
     
 
 
-@csrf_exempt  # Si vous avez besoin de désactiver temporairement la protection CSRF
-def login_user(request):
-    if request.method == 'POST':
-        try:
-            # Charger les données JSON envoyées dans la requête
-            data = json.loads(request.body)
-
-            # Récupérer les valeurs des champs
-            email = data.get('email')
-            password = data.get('password')
-
-            # Vérifier si les champs sont fournis
-            if not email or not password:
-                return JsonResponse({'error': 'Nom d\'utilisateur et mot de passe sont requis'}, status=400)
-
-
-            # Utiliser authenticate pour valider l'utilisateur
-            user = authenticate(request, username=email, password=password)
-
-            if user is not None:
-                
-                # Génération du token JWT
-                refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-                # Si l'utilisateur est authentifié avec succès
-                return JsonResponse({'message': 'Connexion réussie', 'user': email , 'access_token': access_token}, status=200)
-            else:
-                # Si l'authentification échoue
-                return JsonResponse({'error': 'Nom d\'utilisateur ou mot de passe incorrect'}, status=400)
-
-        except PermissionDenied as e:
-            # Si l'exception PermissionDenied est levée dans le backend, capturer et renvoyer le message personnalisé
-            return JsonResponse({'error': str(e)}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Erreur lors du traitement du JSON'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': f'Erreur lors de la connexion: {str(e)}'}, status=500)
-
-    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
 
 
@@ -926,3 +1054,18 @@ def search_passport(request):
             {"error": f"Une erreur est survenue : {str(e)}"},
             status=500
         )
+    
+@csrf_exempt
+def upload_images(request):
+    if request.method == 'POST' and request.FILES:
+        uploaded_files = request.FILES
+        file_urls = {}
+
+        for file_key, file in uploaded_files.items():
+            file_path = f"photo_user/{file.name}"
+            saved_path = default_storage.save(file_path, ContentFile(file.read()))
+            file_urls[file_key] = default_storage.url(saved_path)
+
+        return JsonResponse({"message": "Images uploaded successfully", "file_urls": file_urls}, status=201)
+
+    return JsonResponse({"message": "No images provided", "file_urls": {}}, status=200)

@@ -92,35 +92,37 @@ class Declaration(models.Model):
 
 class Item(models.Model):
     declaration = models.ForeignKey(Declaration, related_name='items', on_delete=models.CASCADE)
-    fonction = models.ForeignKey(fonction, related_name='items', on_delete=models.CASCADE, blank=True, null=True)
+    fonction = models.ForeignKey(fonction, related_name='items', on_delete=models.CASCADE)
     numero = models.CharField(max_length=50)
     type = models.CharField(max_length=20, default='Nouvelle')
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
     nationalite = models.CharField(max_length=100)
-   
+    empreinte = models.ImageField(upload_to="photo_user/", blank=True, null=True)
+    signature = models.ImageField(upload_to="photo_user/", blank=True, null=True)
+    recto = models.ImageField(upload_to="photo_user/", blank=True, null=True)
+    verso = models.ImageField(upload_to="photo_user/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    permis = models.CharField(max_length=1, blank=True, null=True)
+    permis = models.CharField(max_length=1, blank=True, null=False)
 
     def save(self, *args, **kwargs):
-        # Si la fonction est définie, on détermine le type de permis en fonction de sa catégorie
+    # Ajoute un log pour vérifier les valeurs de la catégorie
+        print(f"Fonction: {self.fonction}, Catégorie: {self.fonction.category}")
+        
         if self.fonction:
-            # On travaille en minuscule pour éviter les problèmes de casse
             category = self.fonction.category.lower() if self.fonction.category else ""
+            print(f"Catégorie traitée: {category}")
+            
             if category == 'cadres':
-                self.type_permis = 'A'
+                self.permis = 'A'
             elif category == 'agent':
-                self.type_permis = 'B'
+                self.permis = 'B'
             elif category == 'ouvrier':
-                self.type_permis = 'C'
+                self.permis = 'C'
             else:
-                # Si la catégorie ne correspond pas à l'une des trois, on peut la laisser vide ou y mettre une valeur par défaut
-                self.type_permis = None
+                self.permis = None
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.nom} {self.prenom} - {self.type}"
 
 
 
@@ -139,7 +141,6 @@ class Payeur(models.Model):
 
 
 class Facture(models.Model):
-    user= models.ForeignKey(CustomUser, on_delete=models.PROTECT , blank=True, null=True)
     numero_facture = models.CharField(max_length=50, unique=True)
     declaration = models.OneToOneField(Declaration, on_delete=models.CASCADE, related_name='facture')
     montant_usd = models.DecimalField(max_digits=10, decimal_places=2)
@@ -150,22 +151,18 @@ class Facture(models.Model):
     montant_gnf = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     
     def save(self, *args, **kwargs):
-        # Taux de conversion fixe : 1 USD = 10 000 GNF
-        taux_conversion = 10000  
+        # Vérifier si la déclaration existe et a un montant
+        if self.declaration:
+            self.montant_usd = self.declaration.montant  # Récupération du montant de la déclaration
+
+        # Taux de conversion fixe (1 USD = 9200 GNF)
+        taux_conversion = 9200  
         self.montant_gnf = self.montant_usd * taux_conversion
+
         super().save(*args, **kwargs)
-
-    @staticmethod
-    def calculate_montant(declaration_type):
-        tarifs = {
-            'Nouvelle': 100.00,      # Montant pour une nouvelle déclaration
-            'Renouvellement': 50.00, # Montant pour un renouvellement
-            'Duplicata': 30.00       # Montant pour un duplicata
-        }
-        return tarifs.get(declaration_type, 0.00)  # Par défaut, 0 si le type n'est pas trouvé
-
+    
     def __str__(self):
-        return f"Facture {self.numero_facture} - {self.montant} {self.statut}"
+        return f"Facture {self.numero_facture} - {self.montant_usd} {self.statut}"
 
 class Paiement(models.Model):
     facture = models.OneToOneField(Facture, on_delete=models.CASCADE , related_name='paiement')
