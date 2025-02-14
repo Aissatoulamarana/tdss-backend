@@ -143,7 +143,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3033",  # Adresse du frontend Next.js
     "http://192.168.137.1:3033",
-    "http://127.0.0.1:3033"
+    "http://127.0.0.1:3033",
+    "https://tdss-declaration-6nav.vercel.app",
     
 ]
 
