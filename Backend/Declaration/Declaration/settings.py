@@ -31,7 +31,7 @@ ALLOWED_HOSTS = ['*']
 
 
 NEXTJS_SETTINGS = {
-        "nextjs_server_url": "http://127.0.0.1:3000",
+        "nextjs_server_url": "http://127.0.0.1:3033",
         "ensure_csrf_token": True,
     }
 # Application definition
@@ -142,6 +142,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3033",  # Adresse du frontend Next.js
+    "http://192.168.137.1:3033",
+    "http://127.0.0.1:3033"
     
 ]
 
@@ -153,10 +155,7 @@ NEXT_PUBLIC_DIR = "path/to/nextjs/public"  # Chemin vers le dossier `public` de 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-NEXTJS_SETTINGS = {
-    "nextjs_server_url": "http://127.0.0.1:3033",  # L'URL de votre serveur Next.js
-   
-}
+
 
 AUTHENTICATION_BACKENDS = [
     'app.backend.EmailBackend',
