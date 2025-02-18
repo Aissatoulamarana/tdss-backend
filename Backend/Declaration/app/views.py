@@ -28,6 +28,7 @@ import string
 from datetime import datetime
 
 
+
 @csrf_exempt  # Si vous avez besoin de désactiver temporairement la protection CSRF
 def login_user(request):
     if request.method == 'POST':
@@ -74,7 +75,7 @@ def login_user(request):
 def create_declaration(request):
     if request.method == "POST":
         try:
-             # Vérification et extraction du token JWT
+            # Vérification et extraction du token JWT
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
                 return JsonResponse({"error": "Utilisateur non authentifié"}, status=401)
@@ -89,7 +90,10 @@ def create_declaration(request):
                 return JsonResponse({"error": "Token invalide"}, status=401)
             except CustomUser.DoesNotExist:
                 return JsonResponse({"error": "Utilisateur introuvable"}, status=404)
-            data = json.loads(request.body)
+
+            # Extraction des données textuelles et fichiers
+            data = request.POST
+            files = request.FILES
 
             # Création de la déclaration
             declaration = Declaration.objects.create(
@@ -97,34 +101,54 @@ def create_declaration(request):
                 declaration_number=data.get('declarationNumber'),
                 create_date=data.get('createDate'),
                 status=data.get('status', 'brouillon'),
+                type=data.get('type', '').strip()
             )
 
-            total_montant = 0  # Variable pour accumuler le montant total
+            total_montant = 0.00
+
+            # Extraction dynamique des items depuis le FormData
+            items = []
+            index = 0
+            while f'items[{index}][numero]' in data:
+                items.append({
+                    "numero": data.get(f'items[{index}][numero]'),
+                    "nom": data.get(f'items[{index}][nom]'),
+                    "prenom": data.get(f'items[{index}][prenom]'),
+                    "telephone": data.get(f'items[{index}][telephone]'),
+                    "fonction": data.get(f'items[{index}][fonction]'),
+                    # Les fichiers seront extraits depuis request.FILES
+                    "empreinte": files.get(f'items[{index}][empreinte]'),
+                    "signature": files.get(f'items[{index}][signature]'),
+                    "recto": files.get(f'items[{index}][recto]'),
+                    "verso": files.get(f'items[{index}][verso]')
+                })
+                index += 1
 
             # Création des éléments associés à la déclaration
-            items = data.get('items', [])
-            for item in items:
-                print(f"Fonction recherchée : '{item['fonction']}'")  # Affiche ce qui est passé
+            for idx, item in enumerate(items):
+                print(f"Fonction recherchée : '{item['fonction']}'")
                 try:
                     fonction_instance = fonction.objects.get(name=item['fonction'])
                 except fonction.DoesNotExist:
-                    return JsonResponse({"error": f"Fonction '{item['fonction']}' non trouvée dans la base de données."}, status=400)
+                    return JsonResponse(
+                        {"error": f"Fonction '{item['fonction']}' non trouvée dans la base de données."},
+                        status=400
+                    )
 
-                Item.objects.create(
-                    declaration=declaration,
-                    numero=item['numero'],
-                    type=item['type'],
-                    fonction=fonction_instance,
-                    nationalite=item['nationalite'],
-                    prenom=item['prenom'],
-                    nom=item['nom'],
-                    empreinte=item.get('empreinte', None),
-                    signature=item.get('signature', None),
-                    recto=item.get('recto', None),
-                    verso=item.get('verso', None)
-                )
+                created_item = Item.objects.create(
+                declaration=declaration,
+                numero=item['numero'],
+                fonction=fonction_instance,
+                telephone=item['telephone'],
+                prenom=item['prenom'],
+                nom=item['nom'],
+                empreinte=item['empreinte'],
+                signature=item['signature'],
+                recto=item['recto'],
+                verso=item['verso']
+            )
 
-                # Définition des montants en fonction du type et du permis
+                # Exemple de calcul du montant total
                 TARIFS = {
                     'Nouvelle': {
                         'A': 3600.00,
@@ -143,31 +167,26 @@ def create_declaration(request):
                     }
                 }
 
-                # Initialisation du montant total
-                total_montant = 0.00
-
-                # Calcul du montant en fonction du type et du permis
-                for item in items:
-                    type_demande = item.get('type')  # Récupérer le type de la demande
-                    type_permis = item.get('permis')  # Récupérer le type de permis
-
-                    # Vérification si le type de demande et le permis existent dans le dictionnaire
-                    if type_demande in TARIFS and type_permis in TARIFS[type_demande]:
-                        total_montant += TARIFS[type_demande][type_permis]
-                    else:
-                        total_montant += 0.00  # Aucun montant ajouté si la combinaison n'existe pas
-
+                permit = (created_item.permis or '').strip().upper()
+                print(f"Item {idx} permis généré : '{permit}'")
+                declaration_type = data.get('type', '').strip()
+                if declaration_type in TARIFS and permit in TARIFS[declaration_type]:
+                    total_montant += TARIFS[declaration_type][permit]
+                else:
+                    print(f"Aucune correspondance pour type='{declaration_type}' et permis='{permit}'. Montant par défaut = 0.")
+                    total_montant += 0.00
 
             # Mise à jour du montant total sur la déclaration
             declaration.montant = total_montant
             declaration.save()
 
             return JsonResponse({"message": "Déclaration créée avec succès", "montant": total_montant}, status=201)
-        
+
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
 
     return JsonResponse({"error": "Méthode de requête invalide"}, status=405)
+
 
 
 def list_declarations(request):
@@ -202,7 +221,7 @@ def get_declaration_details(request, declaration_id):
             
             # Récupérer les éléments associés avec optimisation
             items = Item.objects.filter(declaration=declaration).select_related('fonction').values(
-                "numero", "prenom", "nom", "fonction__name", "nationalite", "fonction__category", "permis"
+                "numero", "prenom", "nom", "fonction__name", "telephone" ,"fonction__category", "permis"
             )
             
             return JsonResponse({
@@ -211,6 +230,7 @@ def get_declaration_details(request, declaration_id):
                 "create_date": declaration.create_date.strftime('%Y-%m-%d %H:%M:%S'),  # Format de la date
                 "status": declaration.status,
                 "user": user_info,  # Ajouter l'utilisateur
+                'type': declaration.type,
                 "items": list(items),  # Inclure les éléments associés
             }, status=200)
         except ObjectDoesNotExist:
@@ -279,7 +299,7 @@ def details_factures(request, facture_id):
         # Comptage des permis et ajout dans le tableau
         for item in items:
             permis = item.permis  # "A", "B", ou "C"
-            type_permis = item.type  # "Renouvellement", "Duplicata", ou "Nouvelle"
+            # type_permis = item.type  # "Renouvellement", "Duplicata", ou "Nouvelle"
 
             # Si le permis est valide (A, B, ou C), incrémenter le compteur
             if permis in permis_quantite:
@@ -290,9 +310,10 @@ def details_factures(request, facture_id):
             if quantite > 0:  # N'ajouter que si la quantité est > 0
                 # Trouver le prix unitaire pour ce permis
                 prix_unitaire = 0.00
+                type_permis = facture.declaration.type  # "Renouvellement", "Duplicata", ou "Nouvelle"
                 for item in items:
                     if item.permis == permis:
-                        type_permis = item.type  # "Renouvellement", "Duplicata", ou "Nouvelle"
+                       
                         prix_unitaire = TARIFS.get(type_permis, {}).get(permis, 0.00)
                         break
 
@@ -504,7 +525,7 @@ def paid_facture(request, facture_id):
                 utilisateur=user,  # Utilisation correcte de l'utilisateur authentifié
             )
 
-            if facture.status == 'paid':
+            if facture.statut == 'paid':
                 return JsonResponse({
                     "success": False,
                     "error": "La facture a déjà été payée."
@@ -526,6 +547,91 @@ def paid_facture(request, facture_id):
     return JsonResponse({"success": False, "error": "Méthode non autorisée"}, status=405)
 
 
+
+@csrf_exempt
+def paid_factures(request):
+    if request.method == "POST":
+        try:
+            # Vérification et extraction du token JWT
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return JsonResponse({"error": "Utilisateur non authentifié"}, status=401)
+            token = auth_header.split(" ")[1]
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                user = CustomUser.objects.get(id=payload["user_id"])
+            except jwt.ExpiredSignatureError:
+                return JsonResponse({"error": "Token expiré"}, status=401)
+            except jwt.DecodeError:
+                return JsonResponse({"error": "Token invalide"}, status=401)
+            except CustomUser.DoesNotExist:
+                return JsonResponse({"error": "Utilisateur introuvable"}, status=404)
+
+            # Récupération et décodage des données JSON envoyées
+            try:
+                data = json.loads(request.body)
+                facture_ids = data.get("facture_ids", [])
+                banque_id = data.get("banque_id")
+            except json.JSONDecodeError:
+                return JsonResponse({"error": "Format de données invalide."}, status=400)
+
+            if not facture_ids or not isinstance(facture_ids, list):
+                return JsonResponse({"error": "La liste des facture_ids est requise."}, status=400)
+
+            # Vérifier l'existence de la banque et qu'elle est active
+            try:
+                bank = Bank.objects.get(id=banque_id, is_active=True)
+            except Bank.DoesNotExist:
+                return JsonResponse({"error": "Banque invalide ou non disponible."}, status=400)
+
+            paiements_created = []
+            erreurs = []
+
+            # Parcours de chaque facture dans la liste
+            for facture_id in facture_ids:
+                try:
+                    facture = Facture.objects.get(id=facture_id)
+                except Facture.DoesNotExist:
+                    erreurs.append(f"Facture {facture_id} non trouvée.")
+                    continue
+
+                if not facture.payeur:
+                    erreurs.append(f"Aucun payeur associé à la facture {facture_id}.")
+                    continue
+
+                if facture.statut == "paid":
+                    erreurs.append(f"La facture {facture_id} a déjà été payée.")
+                    continue
+
+                # Création du paiement pour la facture
+                paiement = Paiement.objects.create(
+                    facture=facture,
+                    banque=bank,
+                    utilisateur=user  # Utilisateur authentifié
+                )
+
+                # Mise à jour du statut de la facture en "paid"
+                facture.statut = "paid"
+                facture.save()
+
+                paiements_created.append(paiement.id)
+
+            # Préparation de la réponse
+            response_data = {
+                "success": True,
+                "paiements_created": paiements_created,
+            }
+            if erreurs:
+                response_data["erreurs"] = erreurs
+
+            return JsonResponse(response_data, status=201)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+    return JsonResponse({"error": "Méthode non autorisée"}, status=405)
+
+
 def list_paiements(request):
     if request.method == "GET":
         # Récupération de tous les paiements avec leurs objets liés pour éviter des requêtes supplémentaires
@@ -545,6 +651,7 @@ def list_paiements(request):
             date_paiement = paiement.created
             montantGnf = facture.montant_gnf
             montantUsd = facture.montant_usd
+            type_dec = facture.declaration.type
             
             # Déterminer le nom et le prénom à afficher :
             # Si la facture possède un payeur, on utilise ses informations.
@@ -568,7 +675,8 @@ def list_paiements(request):
                 "payer_nom": payer_nom,
                 "payer_prenom": payer_prenom,
                 "montantGN": montantGnf,
-                "montantUsd": montantUsd
+                "montantUsd": montantUsd,
+                "type": type_dec
             })
         
         return JsonResponse(paiements_data, safe=False)
@@ -683,7 +791,7 @@ def create_user(request):
 
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
 
-@csrf_exempt
+@csrf_exempt 
 def create_payeur(request):
     if request.method == 'POST':
         try:
@@ -698,27 +806,39 @@ def create_payeur(request):
                 numero_compte=data.get('numero_compte'),
                 devise=data.get('devise'),
             )
-            # Facultatif : sauvegarde explicite (bien que create() le fasse déjà)
+            # Facultatif : sauvegarde explicite (create() sauvegarde déjà)
             payeur.save()
 
-            # Récupérer l'identifiant de la facture depuis les données reçues
-            facture_id = data.get('facture_id')
-            if facture_id:
-                try:
-                    facture = Facture.objects.get(id=facture_id)
-                    facture.payeur = payeur
-                    facture.save()
-                except Facture.DoesNotExist:
-                    return JsonResponse({'error': f'La facture avec l\'id {facture_id} n\'existe pas.'}, status=404)
-                except Exception as e:
-                    return JsonResponse({'error': f'Erreur lors de l\'association du payeur à la facture: {str(e)}'}, status=400)
+            # Récupération de facture_id qui peut être une liste ou un entier
+            facture_ids = data.get('facture_id')
+            if facture_ids:
+                # Si facture_ids est une liste
+                if isinstance(facture_ids, list):
+                    for fid in facture_ids:
+                        try:
+                            facture = Facture.objects.get(id=fid)
+                            facture.payeur = payeur
+                            facture.save()
+                        except Facture.DoesNotExist:
+                            return JsonResponse({'error': f'La facture avec l\'id {fid} n\'existe pas.'}, status=404)
+                        except Exception as e:
+                            return JsonResponse({'error': f'Erreur lors de l\'association du payeur à la facture: {str(e)}'}, status=400)
+                # Si facture_ids est un entier
+                else:
+                    try:
+                        facture = Facture.objects.get(id=facture_ids)
+                        facture.payeur = payeur
+                        facture.save()
+                    except Facture.DoesNotExist:
+                        return JsonResponse({'error': f'La facture avec l\'id {facture_ids} n\'existe pas.'}, status=404)
+                    except Exception as e:
+                        return JsonResponse({'error': f'Erreur lors de l\'association du payeur à la facture: {str(e)}'}, status=400)
 
             return JsonResponse({
-            'message': 'Payeur créé et associé avec succès',
-            'payeur_id': payeur.id,
-            'facture_id': facture_id,
-           
-        }, status=201)
+                'message': 'Payeur créé et associé avec succès',
+                'payeur_id': payeur.id,
+                'facture_id': facture_ids,
+            }, status=201)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)

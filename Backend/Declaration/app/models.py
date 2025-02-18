@@ -2,6 +2,8 @@ from django.db import models
 from datetime import datetime
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Count
+import random
+import string
 
 # Create your models here.
 
@@ -72,6 +74,7 @@ class Declaration(models.Model):
     user= models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True)
     declaration_number = models.CharField(max_length=50, unique=True)
     create_date = models.DateField()
+    type = models.CharField(max_length=50 , default='Nouvelle')
     status = models.CharField(max_length=20, default='Brouillon')  # 'draft' ou 'soumise'
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -91,13 +94,13 @@ class Declaration(models.Model):
 
 
 class Item(models.Model):
-    declaration = models.ForeignKey(Declaration, related_name='items', on_delete=models.CASCADE)
-    fonction = models.ForeignKey(fonction, related_name='items', on_delete=models.CASCADE)
+    declaration = models.ForeignKey('Declaration', related_name='items', on_delete=models.CASCADE)
+    fonction = models.ForeignKey('fonction', related_name='items', on_delete=models.CASCADE)
     numero = models.CharField(max_length=50)
-    type = models.CharField(max_length=20, default='Nouvelle')
+    identifier = models.CharField(max_length=20, unique=True, blank=True, null=True)
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
-    nationalite = models.CharField(max_length=100)
+    telephone = models.CharField(max_length=100)
     empreinte = models.ImageField(upload_to="photo_user/", blank=True, null=True)
     signature = models.ImageField(upload_to="photo_user/", blank=True, null=True)
     recto = models.ImageField(upload_to="photo_user/", blank=True, null=True)
@@ -107,7 +110,7 @@ class Item(models.Model):
     permis = models.CharField(max_length=1, blank=True, null=False)
 
     def save(self, *args, **kwargs):
-    # Ajoute un log pour vérifier les valeurs de la catégorie
+        # Log de debug pour vérifier la fonction et sa catégorie
         print(f"Fonction: {self.fonction}, Catégorie: {self.fonction.category}")
         
         if self.fonction:
@@ -122,7 +125,30 @@ class Item(models.Model):
                 self.permis = 'C'
             else:
                 self.permis = None
+
+        # Génération de l'identifiant unique s'il n'est pas déjà défini
+        if not self.identifier:
+            # Récupérer le dernier item créé (en se basant sur l'id)
+            last_item = Item.objects.order_by('-id').first()
+            if last_item and last_item.identifier:
+                try:
+                    # On extrait la partie numérique en supposant le format "ID" suivi de 4 chiffres puis 6 caractères aléatoires
+                    numeric_part = int(last_item.identifier[2:6])
+                except (ValueError, IndexError):
+                    numeric_part = 0
+            else:
+                numeric_part = 0
+
+            numeric_part += 1
+            padded_numeric = str(numeric_part).zfill(4)
+            # Générer une chaîne aléatoire de 6 caractères en mélangeant chiffres et lettres majuscules
+            random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            self.identifier = f"ID{padded_numeric}{random_part}"
+
         super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.identifier} - {self.nom} {self.prenom}"
 
 
 
