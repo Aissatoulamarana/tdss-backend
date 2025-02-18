@@ -152,19 +152,19 @@ def create_declaration(request):
                 # Exemple de calcul du montant total
                 TARIFS = {
                     'Nouvelle': {
-                        'A': 3600.00,
-                        'B': 2200.00,
+                        'A': 3000.00,
+                        'B': 2000.00,
                         'C': 1200.00
                     },
                     'Renouvellement': {
                         'A': 3000.00,
-                        'B': 1800.00,
-                        'C': 1000.00
+                        'B': 2000.00,
+                        'C': 1200.00
                     },
                     'Duplicata': {
-                        'A': 1500.00,
-                        'B': 1000.00,
-                        'C': 500.00
+                        'A': 3000.00,
+                        'B': 2000.00,
+                        'C': 1200.00
                     }
                 }
 
