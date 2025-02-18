@@ -26,6 +26,7 @@ from django.conf import settings
 import random
 import string
 from datetime import datetime
+from django.db.models import Max
 
 
 
@@ -385,35 +386,37 @@ def facturer_declarations(request, declaration_id):
                     "error": "La déclaration a déjà été facturée."
                 }, status=400)
 
-            # Mettre à jour le statut de la déclaration à 'facturée'
-            declaration.status = 'facturée'
-            declaration.save()
-
             # Utiliser directement le montant de la déclaration
-            montant_usd  = declaration.montant
-            print(f"Montant de la déclaration : {montant_usd }")
-
-            last_sequence = 0
+            montant_usd = declaration.montant
+            print(f"Montant de la déclaration : {montant_usd}")
 
             now = datetime.now()
             year = now.year
             month = now.month 
+
+            # Récupérer la dernière facture du mois et incrémenter la séquence
+            last_facture = Facture.objects.filter(numero_facture__startswith=f"FCT-{year}-{month:02d}-").aggregate(Max('numero_facture'))
+
+            if last_facture['numero_facture__max']:
+                last_sequence = int(last_facture['numero_facture__max'].split('-')[-1])
+            else:
+                last_sequence = 0
+
             next_sequence = last_sequence + 1
 
-            
-
-            # Génération du numéro de facture
-
+            # Génération du numéro de facture unique
             numero_facture = f"FCT-{year}-{month:02d}-{next_sequence:03d}"
 
             # Création de la facture avec le même montant que la déclaration
             facture = Facture.objects.create(
                 numero_facture=numero_facture,
                 declaration=declaration,
-                montant_usd=montant_usd ,
-                
+                montant_usd=montant_usd
             )
-            facture.save()
+
+            # Mettre à jour le statut de la déclaration à 'facturée'
+            declaration.status = 'facturée'
+            declaration.save()
 
             return JsonResponse({
                 "success": True,
