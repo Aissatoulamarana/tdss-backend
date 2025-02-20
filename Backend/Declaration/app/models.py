@@ -73,7 +73,7 @@ class Bank(models.Model):
 class Declaration(models.Model):
     user= models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True)
     declaration_number = models.CharField(max_length=50, unique=True)
-    create_date = models.DateField()
+    # create_date = models.DateField()
     type = models.CharField(max_length=50 , default='Nouvelle')
     status = models.CharField(max_length=20, default='Brouillon')  # 'draft' ou 'soumise'
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,13 +81,13 @@ class Declaration(models.Model):
     montant = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     company= models.CharField(max_length=50 , blank=True , null=True)
 
-    def save(self, *args, **kwargs):
-        if isinstance(self.create_date, str):
-            try:
-                self.create_date = datetime.strptime(self.create_date, '%Y-%m-%dT%H:%M:%S%z').date()
-            except ValueError:
-                pass  # Vous pouvez gérer le format incorrect ici
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if isinstance(self.create_date, str):
+    #         try:
+    #             self.create_date = datetime.strptime(self.create_date, '%Y-%m-%dT%H:%M:%S%z').date()
+    #         except ValueError:
+    #             pass  # Vous pouvez gérer le format incorrect ici
+    #     super().save(*args, **kwargs)
 
     def __str__(self):
         return self.declaration_number

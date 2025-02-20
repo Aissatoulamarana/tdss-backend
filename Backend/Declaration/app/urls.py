@@ -39,6 +39,7 @@ urlpatterns = [
     path('facture/<int:facture_id>/', views.details_factures, name='details_factures'),
     path('paiements/', views.list_paiements, name='liste_paiements'),
     path('paid_factures/', views.paid_factures, name='paid_factures'),
+    path('api/search_identifier/', views.search_identifier, name='search_identifier'),
   
 
 

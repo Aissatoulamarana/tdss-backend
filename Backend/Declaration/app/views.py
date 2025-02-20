@@ -100,7 +100,7 @@ def create_declaration(request):
             declaration = Declaration.objects.create(
                 user=user,
                 declaration_number=data.get('declarationNumber'),
-                create_date=data.get('createDate'),
+                # create_date=data.get('createDate'),
                 status=data.get('status', 'brouillon'),
                 type=data.get('type', '').strip()
             )
@@ -197,7 +197,7 @@ def list_declarations(request):
             items_count=Count('items'),
             montant_facture=F('montant')  # Utilise la relation avec Facture
         ).values(
-            'id', 'declaration_number', 'create_date', 'status', 'items_count', 'montant_facture', 
+            'id', 'declaration_number', 'created_at', 'status', 'items_count', 'montant_facture', 'type'
         )
 
         return JsonResponse(list(declarations), safe=False)
@@ -228,7 +228,7 @@ def get_declaration_details(request, declaration_id):
             return JsonResponse({
                 "id": declaration.id,
                 "declaration_number": declaration.declaration_number,
-                "create_date": declaration.create_date.strftime('%Y-%m-%d %H:%M:%S'),  # Format de la date
+                "create_at": declaration.created_at,  # Format de la date
                 "status": declaration.status,
                 "user": user_info,  # Ajouter l'utilisateur
                 'type': declaration.type,
@@ -1149,17 +1149,17 @@ def bannir_user(request, user_id):
 
 def search_passport(request):
     """
-    Endpoint pour vérifier l'existence d'un passeport.
+    Endpoint pour vérifier l'existence d'un passeport et renvoyer ses informations.
     On attend une requête GET avec le paramètre 'numero' correspondant au numéro de passeport.
     """
-    # Vérification manuelle de la méthode HTTP
+    # Vérification de la méthode HTTP
     if request.method != 'GET':
         return JsonResponse(
             {"error": "Méthode non autorisée. Seules les requêtes GET sont acceptées."},
             status=405
         )
 
-    # Récupération manuelle du paramètre 'numero'
+    # Récupération du paramètre 'numero'
     numero = request.GET.get('numero')
     if not numero:
         return JsonResponse(
@@ -1168,15 +1168,73 @@ def search_passport(request):
         )
 
     try:
-        # Vérifier si un item avec ce numéro de passeport existe
-        exists = Item.objects.filter(numero=numero).exists()
-        return JsonResponse({"exists": exists})
+        # Récupérer l'objet correspondant au numéro de passeport
+        item = Item.objects.filter(numero=numero).first()
+        if item:
+            # Construction d'un dictionnaire contenant les informations souhaitées
+            data = {
+                "id": item.id,
+                "numero": item.numero,
+                "nom": item.nom,
+                "prenom": item.prenom,
+                "identifier": item.identifier,
+                "telephone": item.telephone,
+                "fonction": item.fonction.name,
+                # Ajoutez ici d'autres champs si nécessaire
+            }
+            return JsonResponse({"exists": True, "data": data})
+        else:
+            return JsonResponse({"exists": False})
     except Exception as e:
-        # En cas d'erreur, renvoyer une réponse avec le message d'erreur
         return JsonResponse(
             {"error": f"Une erreur est survenue : {str(e)}"},
             status=500
         )
+
+
+def search_identifier(request):
+    """
+    Endpoint pour vérifier l'existence d'un passeport et renvoyer ses informations.
+    On attend une requête GET avec le paramètre 'numero' correspondant au numéro de passeport.
+    """
+    # Vérification de la méthode HTTP
+    if request.method != 'GET':
+        return JsonResponse(
+            {"error": "Méthode non autorisée. Seules les requêtes GET sont acceptées."},
+            status=405
+        )
+
+    # Récupération du paramètre 'numero'
+    identifier = request.GET.get('identifier')
+    if not identifier:
+        return JsonResponse(
+            {"error": "Le paramètre 'identifier' est requis."},
+            status=400
+        )
+
+    try:
+        # Récupérer l'objet correspondant au numéro de passeport
+        item = Item.objects.filter(identifier=identifier).first()
+        if item:
+            # Construction d'un dictionnaire contenant les informations souhaitées
+            data = {
+                "id": item.id,
+                "numero": item.numero,
+                "nom": item.nom,
+                "prenom": item.prenom,
+                "telephone": item.telephone,
+                "fonction": item.fonction.name,
+                # Ajoutez ici d'autres champs si nécessaire
+            }
+            return JsonResponse({"exists": True, "data": data})
+        else:
+            return JsonResponse({"exists": False})
+    except Exception as e:
+        return JsonResponse(
+            {"error": f"Une erreur est survenue : {str(e)}"},
+            status=500
+        )
+
     
 @csrf_exempt
 def upload_images(request):
