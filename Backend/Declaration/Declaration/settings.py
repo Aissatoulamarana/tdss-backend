@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'app',
     'corsheaders',
     'channels',
+    'rest_framework',
     'rest_framework_simplejwt',
 ]
 
@@ -148,6 +149,13 @@ CORS_ALLOWED_ORIGINS = [
     
 ]
 
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'Access-Control-Allow-Origin',
+]
+
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 NEXT_BUILD_DIR = "path/to/nextjs/.next"  # Chemin vers le dossier `.next` généré par Next.js
@@ -157,15 +165,12 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
-
-AUTHENTICATION_BACKENDS = [
-    'app.backend.EmailBackend',
-    'django.contrib.auth.backends.ModelBackend',
-]
+AUTH_USER_MODEL = 'app.CustomUser'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # Durée du token d'accès
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Durée du refresh token
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 
@@ -178,12 +183,10 @@ REST_FRAMEWORK = {
     ],
 }
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-MAILGUN_API_KEY = "ta_cle_api_mailgun"
-MAILGUN_DOMAIN = "ton_domaine_mailgun"
-EMAIL_HOST = "smtp.mailgun.org"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = f"postmaster@{MAILGUN_DOMAIN}"
-EMAIL_HOST_PASSWORD = MAILGUN_API_KEY
-DEFAULT_FROM_EMAIL = f"noreply@{MAILGUN_DOMAIN}"
+EMAIL_HOST_USER = "aissatoulmd@gmail.com"
+EMAIL_HOST_PASSWORD = "xjiv kqvi isss acvq"
+DEFAULT_FROM_EMAIL = f"aissatoulmd@gmail.com"

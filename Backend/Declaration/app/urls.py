@@ -40,6 +40,10 @@ urlpatterns = [
     path('paiements/', views.list_paiements, name='liste_paiements'),
     path('paid_factures/', views.paid_factures, name='paid_factures'),
     path('api/search_identifier/', views.search_identifier, name='search_identifier'),
+    path('api/create_bank/', views.create_admin_bank , name='create_admin_bank'),
+    path('api/create_entreprise', views.create_enterprise, name='create_entreprise'),
+    path('create_agence/', views.create_agence, name='create_agence'),
+    path('api/protected/', views.protected_view, name='protected_view'),
   
 
 

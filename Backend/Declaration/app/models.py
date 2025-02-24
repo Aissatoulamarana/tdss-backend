@@ -13,7 +13,7 @@ class CustomUser(AbstractUser):
     address = models.TextField(null=True, blank=True)
     company = models.CharField(max_length=100, null=True, blank=True)
     role = models.CharField(max_length=50, null=True, blank=True)
-    status = models.CharField(max_length=20, default='inactif')
+    status = models.CharField(max_length=20, default='actif')
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
 
     groups = models.ManyToManyField(
@@ -27,6 +27,28 @@ class CustomUser(AbstractUser):
         blank=True
     )
 
+class Agence(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    identifier = models.CharField(max_length=50 , unique=True)
+    address = models.CharField(max_length=100)
+    region  = models.CharField(max_length=100)
+    created_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_by'
+    )
+    manager_by = models.OneToOneField(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='manager'
+    )
+
+    def __str__(self):
+        return self.name
 
 
 class fonction(models.Model):
@@ -60,16 +82,78 @@ class fonction(models.Model):
 
 
 class Bank(models.Model):
-    name = models.CharField(max_length=100)  # Nom de la banque
-    identifier = models.CharField(max_length=50, unique=True)  # Identifiant unique
-    swift_code = models.CharField(max_length=50, blank=True, null=True)  # Code SWIFT
+    name = models.CharField(max_length=100, unique=True)  # Nom de la banque
+    identifier = models.CharField(max_length=100, unique=True)  # Identifiant unique
+    swift_code = models.CharField(max_length=100, blank=True, null=True)  # Code SWIFT
     logo = models.ImageField(upload_to="bank_logos/", blank=True, null=True)  # Logo de la banque
     is_active = models.BooleanField(default=True)  # Statut actif/inactif
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    address = models.CharField(max_length=200, blank=True, null=True) 
+    Region = models.CharField(max_length=200, default= 'Conakry')
+    admin = models.OneToOneField(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bank_admin'
+    )
+
 
     def __str__(self):
         return self.name
+    
+
+class Cabinet(models.Model):
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(max_length=50, unique=True)
+    logo = models.ImageField(upload_to="cabinet_logos/", blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    telephone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(unique=True, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    manager = models.OneToOneField(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cabinet_manager"
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class Enterprise(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    identifier = models.CharField(max_length=50, unique=True)
+    logo = models.ImageField(upload_to="entreprise_logos/", blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    telephone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(unique=True, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    Region = models.CharField(max_length=50, default='Conakry')
+    
+    manager = models.OneToOneField(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enterprise_manager"
+    )
+    
+    cabinet = models.ForeignKey(
+        Cabinet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enterprises"
+    )
+
+    def __str__(self):
+        return self.name
+
 class Declaration(models.Model):
     user= models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True)
     declaration_number = models.CharField(max_length=50, unique=True)

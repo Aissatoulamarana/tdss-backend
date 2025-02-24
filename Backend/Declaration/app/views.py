@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Declaration, Item, Facture, CustomUser, fonction, Bank, Paiement, Payeur
+from .models import Declaration, Item, Facture, CustomUser, fonction, Bank, Paiement, Payeur, Enterprise, Cabinet, Agence
 from django.core.exceptions import ValidationError
 from django.core.exceptions import ObjectDoesNotExist
 from django.views import View
@@ -27,6 +27,9 @@ import random
 import string
 from datetime import datetime
 from django.db.models import Max
+from django.core.mail import send_mail
+
+            
 
 
 
@@ -38,39 +41,35 @@ def login_user(request):
             data = json.loads(request.body)
 
             # Récupérer les valeurs des champs
-            email = data.get('email')
+            username = data.get('email')
             password = data.get('password')
 
             # Vérifier si les champs sont fournis
-            if not email or not password:
+            if not username or not password:
                 return JsonResponse({'error': 'Nom d\'utilisateur et mot de passe sont requis'}, status=400)
 
             # Utiliser authenticate pour valider l'utilisateur
-            user = authenticate(request, username=email, password=password)
+            user = authenticate(request, username=username, password=password)
 
             if user is not None:
-                # Connecter l'utilisateur à la requête
-                login(request, user)
-
+                
                 # Génération du token JWT
                 refresh = RefreshToken.for_user(user)
                 access_token = str(refresh.access_token)
-
                 # Si l'utilisateur est authentifié avec succès
-                return JsonResponse({'message': 'Connexion réussie', 'user': email, 'access_token': access_token}, status=200)
+                return JsonResponse({'message': 'Connexion réussie', 'user': username , 'access_token': access_token}, status=200)
             else:
                 # Si l'authentification échoue
                 return JsonResponse({'error': 'Nom d\'utilisateur ou mot de passe incorrect'}, status=400)
 
-        except PermissionDenied as e:
-            # Si l'exception PermissionDenied est levée dans le backend, capturer et renvoyer le message personnalisé
-            return JsonResponse({'error': str(e)}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Erreur lors du traitement du JSON'}, status=400)
         except Exception as e:
+            # Ajouter l'erreur détaillée ici pour mieux comprendre ce qui échoue
             return JsonResponse({'error': f'Erreur lors de la connexion: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
 
 @csrf_exempt
 def create_declaration(request):
@@ -728,29 +727,40 @@ def user_detail(request, id):
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Utilisateur non trouvé'}, status=404)
 
-# Créer un utilisateur
 @csrf_exempt
 def create_user(request):
     if request.method == 'POST':
         try:
-            # Charger les données JSON
-            data = json.loads(request.body)
-
-            # Récupérer et valider les champs requis
-            username=data.get('name')
-            email=data.get('email')
-            phone_number=data.get('phoneNumber')
-            country=data.get('country')
-            address=data.get('address')
-            company=data.get('company')
-            role=data.get('role')
-            password=data.get('password')
-            profile_image = request.FILES.get('profile_image')
+            if request.content_type.startswith("multipart/form-data"):
+                username = request.POST.get('email')
+                first_name = request.POST.get('name')
+                email = request.POST.get('email')
+                phone_number = request.POST.get('phoneNumber')
+                country = request.POST.get('country')
+                address = request.POST.get('address')
+                company = request.POST.get('company')
+                role = request.POST.get('role')
+                password = request.POST.get('password')
+                profile_image = request.FILES.get('profile_image')
+            else:
+                data = json.loads(request.body)
+                username = data.get('email')
+                first_name = data.get('name')
+                email = data.get('email')
+                phone_number = data.get('phoneNumber')
+                country = data.get('country')
+                address = data.get('address')
+                company = data.get('company')
+                role = data.get('role')
+                password = data.get('password')
+                # Dans le cas JSON, l'image de profil n'est pas fournie via FILES
+                profile_image = None
 
             # Vérification des champs obligatoires
             required_fields = [username, email, password, role]
             if not all(required_fields):
                 return JsonResponse({'error': 'Tous les champs obligatoires doivent être remplis'}, status=400)
+
             # Validation de l'email
             if not email or '@' not in email:
                 return JsonResponse({'error': 'Veuillez fournir une adresse email valide'}, status=400)
@@ -766,6 +776,7 @@ def create_user(request):
             # Créer l'utilisateur
             user = CustomUser(
                 username=username,
+                first_name=first_name,
                 phone_number=phone_number,
                 email=email,
                 role=role,
@@ -773,8 +784,6 @@ def create_user(request):
                 address=address,
                 company=company,
                 profile_image=profile_image
-
-               
             )
 
             # Hachage du mot de passe avant de sauvegarder
@@ -788,11 +797,12 @@ def create_user(request):
         except ValidationError as e:
             return JsonResponse({'error': f'Erreur de validation : {str(e)}'}, status=400)
         except Exception as e:
-            # Ajout d'un logging pour déboguer les erreurs serveur
-            print(f"Erreur inattendue : {str(e)}")  # Remplace par un logger en prod
+            # Remplacer print par un logger approprié en production
+            print(f"Erreur inattendue : {str(e)}")
             return JsonResponse({'error': 'Une erreur est survenue lors de la création de l\'utilisateur'}, status=500)
 
     return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
 
 @csrf_exempt 
 def create_payeur(request):
@@ -1250,3 +1260,256 @@ def upload_images(request):
         return JsonResponse({"message": "Images uploaded successfully", "file_urls": file_urls}, status=201)
 
     return JsonResponse({"message": "No images provided", "file_urls": {}}, status=200)
+
+
+@csrf_exempt
+def create_enterprise(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+
+            name = data.get('name')
+            identifier = data.get('identifier')
+            address = data.get('address', '')
+            telephone = data.get('telephone', '')
+            email = data.get('email', '')
+            cabinet_id = data.get("cabinet_id")
+
+            if not name or not identifier:
+                return JsonResponse({'Erreur': 'Les champs "nom" et "identifiant" sont obligatoires.'}, status=400)
+
+            if identifier and Enterprise.objects.filter(identifier=identifier).exists():
+                return JsonResponse({'Erreur': f'Une entreprise avec l’identifiant "{identifier}" existe déjà.'}, status=400)
+
+            if email and Enterprise.objects.filter(email=email).exists():
+                return JsonResponse({'Erreur': f'L’email "{email}" est déjà utilisé par une autre entreprise.'}, status=400)
+            
+            password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+            manager = CustomUser.objects.create_user(username=email, email=email, password=password)
+            manager.role = "enterprise"
+            manager.save()
+
+            cabinet = None
+            if cabinet_id:
+                try:
+                    cabinet = Cabinet.objects.get(id=cabinet_id)
+                except Cabinet.DoesNotExist:
+                    return JsonResponse({'Erreur': 'Le cabinet spécifié n’existe pas.'}, status=404)
+
+            enterprise = Enterprise.objects.create(
+                name=name,
+                identifier=identifier,
+                address=address,
+                telephone=telephone,
+                email=email,
+                manager=manager,
+                cabinet=cabinet
+            )
+
+            if request.FILES.get('logo'):
+                logo_file = request.FILES['logo']
+                enterprise.logo.save(logo_file.name, logo_file)
+                enterprise.save()
+
+            subject = "Création de votre compte entreprise"
+            message = (
+                f"Bonjour,\n\n"
+                f"Votre entreprise '{name}' a été créée avec succès.\n\n"
+                f"Voici vos identifiants de connexion :\n"
+                f"- Email : {email}\n"
+                f"- Mot de passe : {password}\n\n"
+                f"Veuillez vous connecter et modifier votre mot de passe dès que possible.\n\n"
+                f"Cordialement,\nL'équipe de gestion"
+            )
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+
+            return JsonResponse({'message': 'Entreprise créée avec succès.', 'enterprise_id': enterprise.id}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'Erreur': str(e)}, status=400)
+    
+    return JsonResponse({'Erreur': 'Méthode non autorisée.'}, status=405)
+@csrf_exempt
+def create_admin_bank(request):
+    if request.method == "POST":
+        try:
+            # Vérifier le type de contenu pour gérer l'upload de fichier
+            if request.content_type.startswith("multipart/form-data"):
+                bank_name = request.POST.get('name')
+                identifier = request.POST.get('identifier')
+                swift_code = request.POST.get('swift_code', '')
+                address = request.POST.get('address', '')
+                region = request.POST.get('region', 'Conakry')
+                admin_name = request.POST.get('admin_name')
+                admin_email = request.POST.get('admin_email')
+                admin_password = request.POST.get('admin_password')
+                logo_file = request.FILES.get('logo')
+            else:
+                data = json.loads(request.body)
+                bank_name = data.get('name')
+                identifier = data.get('identifier')
+                swift_code = data.get('swift_code', '')
+                address = data.get('address', '')
+                region = data.get('region', 'Conakry')
+                admin_name = data.get('admin_name')
+                admin_email = data.get('admin_email')
+                admin_password = data.get('admin_password')
+                logo_file = None
+
+            # Validation des champs obligatoires
+            if not bank_name or not identifier:
+                return JsonResponse({'error': 'Les champs "name" et "identifier" sont obligatoires.'}, status=400)
+            
+            if Bank.objects.filter(identifier=identifier).exists():
+                return JsonResponse({'error': 'Une banque avec cet identifiant existe déjà.'}, status=400)
+            
+            if not admin_name or not admin_email or not admin_password:
+                return JsonResponse({'error': 'Les informations de l\'administrateur (nom, email, mot de passe) sont obligatoires.'}, status=400)
+            
+            if '@' not in admin_email:
+                return JsonResponse({'error': 'Veuillez fournir une adresse email valide pour l\'administrateur.'}, status=400)
+            
+            if CustomUser.objects.filter(email=admin_email).exists():
+                return JsonResponse({'error': 'Un administrateur avec cet email existe déjà.'}, status=400)
+            
+            # Création de l'administrateur
+            admin_user = CustomUser.objects.create_user(
+                username=admin_email,
+                email=admin_email,
+                
+            )
+            admin_user.role = 'bank'
+            admin_user.first_name = admin_name  # ou un autre champ pour le nom
+            admin_user.set_password(admin_password)  # Hachage du mot de passe
+            admin_user.save()
+            
+            # Création de la banque en liant l'administrateur
+            bank = Bank.objects.create(
+                name=bank_name,
+                identifier=identifier,
+                swift_code=swift_code,
+                address=address,
+                Region=region,  # Attention à la casse du champ dans le modèle
+                admin=admin_user
+            )
+            
+            # Si un logo est envoyé, l'associer à la banque
+            if logo_file:
+                bank.logo.save(logo_file.name, logo_file)
+                bank.save()
+            
+            # Envoi d'un email de notification avec les identifiants
+            subject = "Création de votre compte banque"
+            message = (
+                f"Bonjour {admin_name},\n\n"
+                f"Votre compte banque a été créé avec succès.\n\n"
+                f"Vos identifiants de connexion sont :\n"
+                f"Email : {admin_email}\n"
+                f"Mot de passe : {admin_password}\n\n"
+                f"Veuillez vous connecter et modifier votre mot de passe dès que possible.\n\n"
+                f"Cordialement,\nL'équipe de gestion"
+            )
+            
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [admin_email],
+                fail_silently=False,
+            )
+            
+            return JsonResponse({'message': 'Banque et administrateur créés avec succès', 'bank_id': bank.id}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+@csrf_exempt
+def create_agence(request):
+    if request.method == 'POST':
+        # Vérifier que l'utilisateur est authentifié
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': "Utilisateur non authentifié"}, status=403)
+        
+        # Vérifier que le rôle de l'utilisateur est Administrateur ou Bank
+        if request.user.role not in ['Administrateur', 'Bank']:
+            return JsonResponse({'error': "Accès refusé. Seuls les Administrateurs ou Bank peuvent créer une agence."}, status=403)
+        
+        try:
+            # Récupération des données selon le Content-Type
+            if request.content_type.startswith("multipart/form-data"):
+                name = request.POST.get('name')
+                address = request.POST.get('address')
+                region = request.POST.get('region')
+                # manager_by_id = request.POST.get('manager_by')
+            else:
+                data = json.loads(request.body)
+                name = data.get('name')
+                address = data.get('address')
+                region = data.get('region')
+                # manager_by_id = data.get('manager_by')
+            
+            # Vérification des champs obligatoires
+            if not all([name, address, region]):
+                return JsonResponse({'error': 'Les champs "name", "address", "region" et "manager_by" sont obligatoires.'}, status=400)
+            
+            # Vérifier que le manager_by n'est pas le même que le created_by (l'utilisateur connecté)
+            # if str(request.user.id) == str(manager_by_id):
+            #     return JsonResponse({'error': "Le manager doit être différent du créateur (vous-même)."}, status=400)
+            
+            # Vérifier l'unicité du nom de l'agence
+            if Agence.objects.filter(name=name).exists():
+                return JsonResponse({'error': 'Une agence avec ce nom existe déjà.'}, status=400)
+            
+            # Génération automatique de l'identifiant
+            last_agence = Agence.objects.all().order_by('id').last()
+            if last_agence and last_agence.identifier.startswith("AG"):
+                try:
+                    last_number = int(last_agence.identifier.replace("AG", ""))
+                except ValueError:
+                    last_number = 0
+            else:
+                last_number = 0
+            new_number = last_number + 1
+            new_identifier = f"AG{new_number:03d}"  # Ex: AG001, AG002, etc.
+            
+            # Récupérer l'utilisateur qui sera le manager
+            # try:
+            #     manager_by_user = CustomUser.objects.get(pk=manager_by_id)
+            # except CustomUser.DoesNotExist:
+            #     return JsonResponse({'error': "L'utilisateur pour 'manager_by' n'existe pas."}, status=400)
+            
+            # Création de l'agence en affectant le créateur et le manager
+            agence = Agence(
+                name=name,
+                identifier=new_identifier,
+                address=address,
+                region=region,
+                created_by=request.user,
+                # manager_by=manager_by_user
+            )
+            agence.save()
+            
+            return JsonResponse({'message': "Agence créée avec succès", 'identifier': new_identifier}, status=201)
+        
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Erreur de format JSON invalide.'}, status=400)
+        except Exception as e:
+            # En production, remplacez print par un logger approprié
+            print(f"Erreur inattendue : {str(e)}")
+            return JsonResponse({'error': "Une erreur est survenue lors de la création de l'agence."}, status=500)
+    
+    return JsonResponse({'error': "Méthode non autorisée."}, status=405)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def protected_view(request):
+    return JsonResponse({"message": f"Bienvenue {request.user.email} !"})

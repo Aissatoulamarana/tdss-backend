@@ -17,6 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,  # Pour obtenir un access & refresh token
+    TokenRefreshView,  # Pour rafraîchir un token
+)
 
 def home(request):
     return HttpResponse("Hello, Django is running!")
@@ -26,4 +30,7 @@ urlpatterns = [
     path('', include('django_nextjs.urls')),
     path('', home),  # Assure-toi que cette ligne est bien présente
     path('', include('app.urls')),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
 ]
