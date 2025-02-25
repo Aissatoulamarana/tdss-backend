@@ -202,6 +202,8 @@ def list_declarations(request):
         return JsonResponse(list(declarations), safe=False)
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
+
+
 @csrf_exempt
 def get_declaration_details(request, declaration_id):
     if request.method == "GET":
@@ -881,8 +883,8 @@ def update_user(request, id):
             # Mise à jour des champs
             if 'username' in data:
                 user.username = data['username']
-            if 'email' in data:
-                user.email = data['email']
+            # if 'email' in data:
+            #     user.email = data['email']
             if 'phone_number' in data:
                 user.phone_number = data['phone_number']
             if 'country' in data:
@@ -1054,7 +1056,7 @@ def create_bank(request):
 
 def bank_list(request):
     if request.method == 'GET':
-        bank = Bank.objects.all().values('id', 'name', 'identifier', 'swift_code', 'logo', 'is_active',  )
+        bank = Bank.objects.all().values('id', 'name', 'identifier', 'swift_code', 'logo', 'region',  )
         return JsonResponse(list(bank), safe=False)
 
 def bank_detail(request, id):
